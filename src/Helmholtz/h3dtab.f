@@ -4,20 +4,21 @@ c     TABLE GENERATION UTILITIES
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
-c       This file contains the routines for evaluating 
-c       the near-field volume potential using an 
-c       anti-Helmholtzian
-c
-c
-c       This file currently contains the following routines
-c       legecoeff_zantihelm3d_form - Form the anti-Helmholtzian
-c
-c       facelayerpot_eval - evaluate the potential
-c         due to single and double layer potential
-c         with arbitrary polynomial densities, to all
-c         points in the near field
-c
-
+c     This file contains the routines for evaluating 
+c     the near-field volume potential using an 
+c     anti-Helmholtzian
+c      
+c     None of these routines is really designed to be user-callable
+c      
+c     
+c     This file currently contains the following routines
+c     legecoeff_zantihelm3d_form - Form the anti-Helmholtzian
+c     
+c     facelayerpot_eval - evaluate the potential
+c     due to single and double layer potential
+c     with arbitrary polynomial densities, to all
+c     points in the near field
+c     
 
 
       subroutine h3dtabp_ref(ndeg,zk,tol,tab,ldtab)
@@ -25,6 +26,23 @@ c
 c     generate the Helmholtz potential table at the reference
 c     points
 c
+c
+c     input
+c
+c     ndeg - integer, highest degree of the basis polynomials
+c                    (measured in total degree, e.g. x^0y^1z^2
+c                     has total degree 3)
+c     zk - complex*16, helmholtz parameter
+c     tol - tolerance for error in table entries
+c     ldtab - integer, leading dimension of the output table
+c
+c     output
+c      
+c     tab - complex *16 array (ldtab,*), tab(i,j) is the integral
+c     of the j-th tensor polynomial (in the ordering specified
+c     in legetens.f) against the scaled green's function
+c     exp(ikr)/r at the i-th reference target point (see tensrefpts3d)
+      
 c      
       implicit none
       integer ndeg, ldtab
@@ -32,14 +50,19 @@ c
       real *8 tol
 c     local
       integer idims(6), ndeg2, ii, jj, iface, npol2, npol3, ifdiff
-      integer ntarg0, ntarg, n, idim, istart
+      integer ntarg0, ntarg, n, idim, istart, npt, itype
       real *8 slicevals(6), flipd(6), flips(6), abszk, abszktol
-      real *8 rcond, val, derscale, tol2
+      real *8 rcond, val, derscale, tol2, r, theta, phi
       parameter (abszktol = 2.5d0)
+
+      real *8, allocatable :: x(:,:), w(:), pols(:), v(:,:)
+      real *8 u, pi4
+      integer ldu, ldv
+      
       complex *16 zero, im, one
-      complex *16, allocatable :: tabtemp(:,:), ahc(:,:)
+      complex *16, allocatable :: tabtemp(:,:), ahc(:,:), zv(:,:)
       complex *16, allocatable :: ahderc(:,:), ahcleg(:,:)
-      complex *16, allocatable :: ahdercleg(:,:)
+      complex *16, allocatable :: ahdercleg(:,:), ahelm(:), ahelms(:,:)
       complex *16, allocatable :: ahcleg3(:,:), leg2sph(:,:)
       complex *16, allocatable :: slp_pots(:,:), dlp_pots(:,:)
 
@@ -55,6 +78,8 @@ c     local
       logical ifsphere
       character type
 
+      pi4 = 16*atan(1.0d0)
+      
       n = ndeg+1
       
       type = 'T'
@@ -70,7 +95,7 @@ c     compute on coefficients
       else
 c     compute using analytic solution on spherical polys
          ifsphere = .true.
-         ndeg2 = 21
+         ndeg2 = 20
       endif
 
 c     memory for coeffs, etc.
@@ -82,17 +107,48 @@ c     memory for coeffs, etc.
       allocate(ahcleg3(npol3,npol3),leg2sph(npol3,npol3))
       allocate(ahcleg(npol2,npol3),ahdercleg(npol2,npol3))
 
+      npt = n**3
+      ldu = 1
+      ldv = npt
+      itype = 4
+      allocate(x(3,npt),w(npt),v(npt,npol3))
+      allocate(zv(npt,npol3))
+      allocate(ahelm(npol3),ahelms(npol3,npt))
+      call legetens_exps_3d(itype,n,type,x,u,ldu,v,ldv,w)
+
+      
       if (.not. ifsphere) then
          tol2 = 1.0d-12
          call h3danti_legetens_form(ndeg,type,zk,tol2,ahcleg3,
      1        npol3,rcond)
+         do ii = 1,npol3
+            do jj = 1,npt
+               zv(jj,ii) = -pi4*v(jj,ii)
+            enddo
+         enddo
+         
+         call zgemm('N','N',npt,npol3,npol3,one,zv,npt,
+     1        ahcleg3,npol3,zero,tab,ldtab)
+         
       else
          call legetens_spherepol(n,npol3,leg2sph)
+         
+         do jj = 1,npt
+            call cart2polar(x(1,jj),r,theta,phi)
+            call h3danti_sphere(ndeg,zk,r,theta,phi,ahelm)
+            do ii = 1,npol3
+               ahelms(ii,jj) = -pi4*ahelm(ii)
+            enddo
+         enddo
+
+         call zgemm('T','N',npt,npol3,npol3,one,ahelms,npol3,
+     1        leg2sph,npol3,zero,tab,ldtab)
+         
       endif
 
 c     memory depending on ntarg
 
-      ntarg0 = 10*n**3
+      ntarg0 = 10*npt
       ntarg = 6*ntarg0
       allocate(slp_pots(npol2,ntarg),dlp_pots(npol2,ntarg))
       allocate(tabtemp(ntarg0,npol3))
@@ -101,12 +157,11 @@ c     memory depending on ntarg
      1  dlp_pots,npol2)
 
       do ii = 1,npol3
-         do jj = 1,ntarg0
+         do jj = npt+1,ntarg0
             tab(jj,ii) = zero
          enddo
       enddo
 
-      
       do iface = 1,6
 
          idim = idims(iface)

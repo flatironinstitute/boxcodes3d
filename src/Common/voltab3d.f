@@ -28,6 +28,70 @@ c                3d points
 c     dists3d - compute pairwise distances between the 3d points
 c     in two arrays
 
+
+      subroutine buildtabfromsyms3d(ndeg,type,iref,idimp,iflip,tabref,
+     1     tabout,npt,npol)
+      implicit none
+      integer ndeg, iref, iflip(3), idimp(3), npt, npol
+      complex *16 tabref(npt,npol,*), tabout(npt,npol)
+      character type
+c     local
+      integer n, j, k
+      integer ipperm(npt), icperm(npol), icsign(npol)
+      
+      n = ndeg+1
+      call buildperm3d(idimp,iflip,n,type,ipperm,icperm,icsign)
+
+      do j = 1,npol
+         do k = 1,npt
+            tabout(ipperm(k),j) = icsign(j)*tabref(k,icperm(j),iref)
+         enddo
+      enddo
+
+      return
+      end
+
+
+      subroutine splitreftab3d(tabref,ldtab,tabcoll,tabbtos,tabstob,
+     1     npt,npol)
+      implicit none
+      integer npt, npol, ldtab
+      complex *16 tabref(ldtab,*), tabcoll(npt,npol,*)
+      complex *16 tabbtos(npt,npol,*), tabstob(npt,npol,*)
+c     local
+      integer i, j, k, nbtos, nstob, ncoll, ii
+
+      ncoll = 4
+      nbtos = 3
+      nstob = 3
+
+      do j = 1,npol
+         ii = 0
+         do k = 1,ncoll
+            do i = 1,npt
+               ii = ii + 1
+               tabcoll(i,j,k) = tabref(ii,j)
+            enddo
+         enddo
+         do k = 1,nbtos
+            do i = 1,npt
+               ii = ii + 1
+               tabbtos(i,j,k) = tabref(ii,j)
+            enddo
+         enddo
+         do k = 1,nstob
+            do i = 1,npt
+               ii = ii + 1
+               tabstob(i,j,k) = tabref(ii,j)
+            enddo
+         enddo
+      enddo
+
+
+
+      return
+      end
+      
       subroutine mesh3d(x,nx,y,ny,z,nz,xyz)
       implicit real *8 (a-h,o-z)
       dimension x(*), y(*), z(*), xyz(3,*)
@@ -338,3 +402,5 @@ c     get corresponding meshgrid
       return
       end
 
+
+      

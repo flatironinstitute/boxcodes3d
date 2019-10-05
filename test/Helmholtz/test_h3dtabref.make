@@ -1,10 +1,10 @@
 
-EXEC = int2greentab
+EXEC = int2greentabref
 
 #HOST = osx
 HOST=linux-gfortran
 HOST=linux-gfortran-openmp
-HOST=linux-gfortran-debug
+#HOST=linux-gfortran-debug
 
 ifeq ($(HOST),osx)
 FC = gfortran
@@ -50,7 +50,7 @@ YTRI_DIR = ../../ytri/src
 
 .PHONY: all clean list
 
-SOURCES =  test_h3dtab.f \
+SOURCES =  test_h3dtabref.f \
   $(SRC)/Common/prini_new.f \
   $(SRC)/Common/legeexps.f \
   $(SRC)/Common/legetens.f \
@@ -65,7 +65,6 @@ SOURCES =  test_h3dtab.f \
   $(SRC)/Common/yrecursion.f \
   $(SRC)/Common/quadintrouts.f \
   $(SRC)/Common/voltab3d.f \
-  $(SRC)/Common/loadsyms3d.f \
   $(SRC)/Helmholtz/lommel.f \
   $(SRC)/Common/aquad.f \
   $(SRC)/Helmholtz/h3dtab.f \
