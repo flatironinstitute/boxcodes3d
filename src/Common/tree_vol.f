@@ -1797,3 +1797,169 @@ c
       
       return
       end
+c
+c
+c
+c
+c
+c
+      subroutine get_list1(nboxes,nlevels,itree,ltree,iptr,
+     1     centers,boxsize,nlist1,list1)
+      implicit real *8 (a-h,o-z)
+c
+c       this subroutine returns the list1 of a given a tree
+c
+c       input:
+c         nboxes - integer
+c            total number of boxes
+c         nlevels - integer
+c            number of levels
+c         itree - integer(ltree)
+c            the tree structure
+c         ltree - integer
+c            length of tree
+c         iptr - integer(8)
+c           iptr(1) - laddr
+c           iptr(2) - ilevel
+c           iptr(3) - iparent
+c           iptr(4) - nchild
+c           iptr(5) - ichild
+c           iptr(6) - ncoll
+c           iptr(7) - coll
+c           iptr(8) - ltree
+c         centers - real *8 (3,nboxes)
+c           centers of boxes in the tree structure
+c         boxsize - real *8 (0:nlevels)
+c           size of the boxes at each level
+c         
+c       output:
+c         nlist1 - integer(nboxes)
+c           number of boxes in list1
+c         list1 - integer(139,nboxes)
+c           list of boxes in list1
+c
+      integer nboxes,nlevels,itree(ltree),iptr(8),ltree
+      integer list1(139,nboxes)
+      real *8 centers(3,nboxes),boxsize(0:nlevels)
+      integer firstbox,lastbox,dad
+
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ibox,j)
+      do ibox=1,nboxes
+        nlist1(ibox) = 0
+        do j=1,139
+          list1(j,ibox) = -1
+        enddo
+      enddo
+C$OMP END PARALLEL DO      
+    
+      if(nchild(1).eq.0) then
+        nlist1(1) = 1
+        list1(14,1) = 1
+        return
+      endif
+
+
+      do ilev=1,nlevels
+        firstbox = itree(iptr(1)+2*ilev)
+        lastbox = itree(iptr(1)+2*ilev+1)
+        distest = 1.05d0*(boxsize(ilev)+boxsize(ilev+1))/2.0d0
+        distest0 = 1.05d0*(boxsize(ilev)+boxsize(ilev-1))/2.0d0
+C$OMP PARALLEL DO DEFAULT(SHARED)
+C$OMP$PRIVATE(ibox,nchild,nnbors,i,jbox,nchildj,ix,iy,iz,iind)
+C$OMP$PRIVATE(j,kbox,xdis,ydis,zdis,dad)
+        do ibox=firstbox,lastbox
+          nchild = itree(iptr(4)+ibox-1)
+          if(nchild.eq.0) then
+            nnbors = itree(iptr(6)+ibox-1)
+            do i=1,nnbors
+              jbox = itree(iptr(7)+27*(ibox-1)+i-1)
+              nchildj = itree(iptr(4)+jbox-1)
+              if(nchildj.eq.0) then
+                nlist1(ibox) = nlist1(ibox)+1
+                
+                ix = (centers(1,jbox)-centers(1,ibox))/boxsize(ilev)
+                iy = (centers(2,jbox)-centers(2,ibox))/boxsize(ilev)
+                iz = (centers(3,jbox)-centers(3,ibox))/boxsize(ilev)
+
+                iind = (iz+1)*3*3 + (iy+1)*3 + ix+2
+                list1(iind,ibox) = jbox
+              else
+                do j=1,8
+                  kbox = itree(iptr(5)+(jbox-1)*8+j-1)
+                  if(kbox.gt.0) then
+                    xdis = centers(1,kbox)-centers(1,ibox)
+                    ydis = centers(2,kbox)-centers(2,ibox)
+                    zdis = centers(3,kbox)-centers(3,ibox)
+                    if(abs(xdis).lt.distest.and.abs(ydis).lt.distest.
+     1                  abs(zdis).lt.distest) then
+                      nlist1(ibox) = nlist1(ibox)+1
+                      ix = (xdis + boxsize(ilev)/4)/boxsize(ilev)*2.0d0
+                      iy = (ydis + boxsize(ilev)/4)/boxsize(ilev)*2.0d0
+                      iz = (zdis + boxsize(ilev)/4)/boxsize(ilev)*2.0d0
+
+                      ix = ix + 1
+                      iy = iy + 1
+                      iz = iz + 1
+
+                      call get_iind_list1(ix,iy,iz,iind)
+                      iind = iind + 27
+
+                      list1(iind,ibox) = kbox
+                    endif
+                  endif
+                enddo
+              endif
+            enddo
+c
+c
+c                compute list1 at level ilev-1
+c
+            dad = itree(iptr(3)+ibox-1)
+            nnbors = itree(iptr(6)+dad-1)
+            do i=1,nnbors
+              jbox = itree(iptr(7)+27*(dad-1)+i-1)
+              nchildj = itree(iptr(4)+jbox-1)
+              if(nchildj.eq.0) then
+                xdis = centers(1,jbox)-centers(1,ibox)
+                ydis = centers(2,jbox)-centers(2,ibox)
+                zdis = centers(3,jbox)-centers(3,ibox)
+
+                if(abs(xdis).lt.distest0.and.abs(ydis).lt.distest0.and.
+     1               abs(zdis).lt.distest0) then
+                  ix = (xdis - boxsize(ilev)/2.0d0)/boxsize(ilev)
+                  iy = (ydis - boxsize(ilev)/2.0d0)/boxsize(ilev)
+                  iz = (zdis - boxsize(ilev)/2.0d0)/boxsize(ilev)
+                  ix = ix + 2
+                  iy = iy + 2
+                  iz = iz + 2
+                  call get_iind_list1(ix,iy,iz,iind)
+                  iind = iind + 27 + 56
+                  nlist1(ibox) = nlist1(ibox)+1
+                  list1(iind,ibox) = jbox
+                endif
+              endif
+            enddo
+          endif
+        enddo
+C$OMP END PARALLEL DO         
+      enddo
+
+      return
+      end
+c
+c
+c
+c
+      subroutine get_iind_list1(ix,iy,iz,iind)
+      implicit none
+      integer ix,iy,iz,iind
+
+      iind = iz*16 + iy*4 + ix + 1
+      if(iz.ge.2) iind = iind-(iz-1)*4
+      if((iz.eq.1.or.iz.eq.2).and.iy.ge.2) iind = iind-(iy-1)*2
+      if((iz.eq.2.or.iz.eq.1).and.(iy.eq.2.or.iy.eq.1).and.ix.eq.3) 
+     1    iind = iind - 2
+       
+      return
+      end
+      
