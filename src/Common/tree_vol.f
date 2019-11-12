@@ -1839,7 +1839,7 @@ c         list1 - integer(139,nboxes)
 c           list of boxes in list1
 c
       integer nboxes,nlevels,itree(ltree),iptr(8),ltree
-      integer list1(139,nboxes)
+      integer list1(139,nboxes),nlist1(nboxes)
       real *8 centers(3,nboxes),boxsize(0:nlevels)
       integer firstbox,lastbox,dad
 
@@ -1852,7 +1852,7 @@ C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ibox,j)
       enddo
 C$OMP END PARALLEL DO      
     
-      if(nchild(1).eq.0) then
+      if(itree(iptr(4)).eq.0) then
         nlist1(1) = 1
         list1(14,1) = 1
         return
@@ -1868,8 +1868,8 @@ C$OMP PARALLEL DO DEFAULT(SHARED)
 C$OMP$PRIVATE(ibox,nchild,nnbors,i,jbox,nchildj,ix,iy,iz,iind)
 C$OMP$PRIVATE(j,kbox,xdis,ydis,zdis,dad)
         do ibox=firstbox,lastbox
-          nchild = itree(iptr(4)+ibox-1)
-          if(nchild.eq.0) then
+          nc = itree(iptr(4)+ibox-1)
+          if(nc.eq.0) then
             nnbors = itree(iptr(6)+ibox-1)
             do i=1,nnbors
               jbox = itree(iptr(7)+27*(ibox-1)+i-1)
@@ -1891,7 +1891,7 @@ C$OMP$PRIVATE(j,kbox,xdis,ydis,zdis,dad)
                     ydis = centers(2,kbox)-centers(2,ibox)
                     zdis = centers(3,kbox)-centers(3,ibox)
                     if(abs(xdis).lt.distest.and.abs(ydis).lt.distest.
-     1                  abs(zdis).lt.distest) then
+     1                  and.abs(zdis).lt.distest) then
                       nlist1(ibox) = nlist1(ibox)+1
                       ix = (xdis + boxsize(ilev)/4)/boxsize(ilev)*2.0d0
                       iy = (ydis + boxsize(ilev)/4)/boxsize(ilev)*2.0d0
@@ -1962,4 +1962,29 @@ c
        
       return
       end
+
+c
+c
+c
+c
+c 
+      subroutine get_list1boxes_type(itype,istart,iend,nboxes,
+     1   nlist1,list1,ijlist,n)
+      implicit real *8 (a-h,o-z)
+      integer itype,istart,iend,nlist1(nboxes),list1(139,nboxes),
+     1   ijlist(2,nboxes)
+
+      n = 0
+      do i=istart,iend
+        if(list1(itype,i).gt.0) then
+          n = n+1
+          ijlist(1,i) = i
+          ijlist(2,i) = list1(itype,i)
+        endif
+      enddo
+
+      return
+      end
+
+      
       

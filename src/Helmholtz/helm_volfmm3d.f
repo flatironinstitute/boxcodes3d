@@ -1,6 +1,6 @@
       subroutine helmholtz_volume_fmm(eps,zk,nboxes,nlevels,ltree,
      1   itree,iptr,norder,ncbox,type,fcoefs,centers,boxsize,npbox,
-     2   xgrid,pot)
+     2   pot)
 c
 c       This code applies the Helmholtz volume layer potential
 c       to a collection of right hand sides
@@ -33,6 +33,8 @@ c           order of expansions for input coefficients array
 c         ncbox - integer
 c           number of coefficients of expansions of functions
 c           in each of the boxes
+c         type - character *1
+c            type of coefs provided, total order ('t') or full order('f')
 c         fcoefs - double complex (ncbox,nboxes)
 c           tensor product legendre expansions of the right hand side
 c         centers - double precision (3,nboxes)
@@ -40,9 +42,7 @@ c           xyz coordintes of boxes in the tree structure
 c         boxsize - double precision (0:nlevels)
 c           size of boxes at each of the levels
 c         npbox - integer
-c           number of points per box where potential is to be dumped
-c         xgrid - double precision (3,npbox)
-c           location of the targets on the standard box [-0.5,0.5]^3
+c           number of points per box where potential is to be dumped = (norder**3)
 c
 c     output:
 c         pot - double complex (npbox,nboxes)
@@ -56,7 +56,6 @@ c
       integer nboxes,nlevels,ltree
       integer itree(ltree),iptr(8),ncbox,npbox
       complex *16 fcoefs(ncbox,nboxes)
-      real *8 xgrid(3,npbox)
       complex *16 pot(npbox,nboxes)
 
       double precision, allocatable :: scales(:)
@@ -110,9 +109,12 @@ c
       double complex, allocatable :: mexpp1(:,:),mexpp2(:,:),
      1    mexppall(:,:,:)
 
-      double precision, allocatable :: rsc(:)i
+      double precision, allocatable :: rsc(:)
       integer, allocatable :: ilevrel(:)
-      complex *16, allocatable :: mpcoeffsmat(:,:)
+      complex *16, allocatable :: mpcoeffsmat(:,:),tab(:,:)
+      complex *16, allocatable :: tabcoll(:,:,:),tabbtos(:,:,:),tabstob(:,:,:)
+      complex *16, allocatable :: tabtmp(:,:),tamat(:,:)
+      complex *16, allocatable :: rhs(:,:),vals(:,:)
       complex *16 ac,bc
 
       integer nquad2,ifinit2
@@ -122,9 +124,14 @@ cc        temporary list info
 c
 
       integer, allocatable :: nlist1(:),list1(:,:)
+      integer, allocatable :: nlist1_detailed(:),list1_detailed(:,:)
       integer, allocatable :: nlist2(:),list2(:,:)
       integer, allocatable :: nlist3(:),list3(:,:)
       integer, allocatable :: nlist4(:),list4(:,:)
+
+      integer, allocatable :: ijboxlist(:)
+
+      integer iref(100),idimp(3,100),iflip(3,100)
 
 
 
@@ -177,6 +184,8 @@ c
      2   itree(iptr(5)),isep,itree(iptr(6)),mnbors,itree(iptr(7)),
      3   nlist1,mnlist1,list1,nlist2,mnlist2,list2,
      4   nlist3,mnlist3,list3,nlist4,mnlist4,list4)
+
+      allocate(ijboxlist(2,nboxes))
 
 c
 c       find scales and number of terms required at each of
@@ -659,5 +668,183 @@ C$OMP END PARALLEL DO
 C$        time2=omp_get_wtime()
       timeinfo(5) = time2-time1
 
+c
+c
+c       step 7 evaluate local expansions
+c
+      do ilev=0,nlevels
+        neval = 0
+        do ibox = itree(2*ilev+1),itree(2*ilev+2)
+          nchild = itree(iptr(4)+ibox-1)
+          if(nchild.eq.0) then
+            neval = neval + 1
+            ijboxlist(1,i) = ibox
+            ijboxlist(2,i) = ibox
+          endif
+        enddo
+
+        if(neval.gt.0) then
+          nmp = (nterms(ilev) + 1)**2
+          allocate(tamat(npbox,nmp),rhs(nmp,neval),vals(npbox,neval))
+          call h3dtaevalgridmatp(zk,rscales(ilev),nterms(ilev),
+     1      boxsize(ilev),norder,wlege,nlege,tamat,npbox)
+          call gather_mploc_vals(neval,ijboxlist,rmlexp,iaddr,2,
+     1      itree(iptr(2)),nboxes,nterms,nmp,rhs)
+
+          call zgemm('n','n',npbox,neval,nmp,ac,tamat,npbox,
+     1       rhs,nmp,bc,vals,npbox)
+
+          call scatter_vals(neval,ijboxlist,pot,npbox,nboxes,vals)
+        endif
+      enddo
+
+
+c
+c
+c       step 8, handle list 1 procesing
+c 
+
+      allocate(nlist1(nboxes),list1_detailed(139,nboxes))
+
+      call get_list1(nboxes,nlevels,itree,ltree,iptr,
+     1   centers,boxsize,nlist1_detailed,list1_detailed)
+
+
+      ntarg0 = 10*npbox
+      allocate(tab(ntarg0,ncbox),tabcoll(npbox,ncbox,4))
+      allocate(tabbtos(npbox,ncbox,3),tabstob(npbox,ncbox,3))
+      allocate(tabtmp(npbox,ncbox))
+
+c
+c      load table symmetries
+c
+      call loadsymsc(iref,idimp,iflip)
+
+      ndeg = norder - 1
+      do ilev=0,nlevels
+
+c
+c         check how many boxes in list 1 at this level
+c
+        nlist1lev = 0
+        do ibox = itree(2*ilev+1),itree(2*ilev+2)
+           if(nlist1(ibox).gt.0) nlist1lev = nlist1lev + 1
+        enddo
+
+c
+c        if number of boxes in list1 > 0 at this level,
+c          then compute near field quadrature
+
+        if(nlist1lev.gt.0) then
+
+          zk2 = zk*boxsize(ilev)
+          call h3dtabp_ref(ndeg,zk2,eps,tab,ntarg0)
+          call splitreftab3d(tab,ntarg0,tabcoll,tabbtos,tabstob,
+     1        npbox,ncbox)
+
+c
+c           extract subtype of boxes in list1
+c
+          iboxstart = itree(2*ilev+1)
+          iboxend = itree(2*ilev+2) - 1
+
+c
+c           handle colleagues
+c
+          do ibtype=1,27
+            ntype = 0
+            call get_list1boxes_type(ibtype,iboxstart,iboxend,
+     1            nboxes,nlist1_detailed,
+     1            list1_detailed,ijboxlist,ntype)
+            if(ntype.gt.0) then
+               allocate(rhs(ncbox,ntype),vals(npbox,ntype))
+               call buildtabfromsysms3d(ndeg,type,iref(i),idimp(1,i),
+     1           iflip(1,i),tabcoll,tabtemp,npbox,ncbox)
+               
+               call gather_vals(ntype,ijboxlist,fcoefs,ncbox,nboxes,rhs)
+              
+               call zgemm('n','n',npbox,ntype,ncbox,ac,tabtmp,npbox,
+     1             rhs,ncbox,bc,vals,npbox)
+
+               call scatter_vals(ntype,ijboxlist,pot,npbox,nboxes,vals)
+
+               deallocate(rhs,vals)
+               
+            endif
+          enddo
+        endif
+      enddo
+
       return
       end
+
+c
+c
+c
+c
+c
+
+      subroutine scatter_vals(n,ijlist,pot,npbox,nboxes,vals)
+      implicit real *8 (a-h,o-z)
+
+      integer ijlist(2,n),ncbox,nboxes
+      complex *16 pot(npbox,n),vals(npbox,nboxes)
+
+      do i=1,n
+        ibox = ijlist(2,i)
+        do j=1,npbox
+          pot(j,ibox) = pot(j,ibox) + vals(j,i)
+        enddo
+      enddo
+
+      return
+      end
+c
+c
+c
+c
+c
+
+      subroutine gather_vals(n,ijlist,fcoefs,ncbox,nboxes,rhs)
+      implicit real *8 (a-h,o-z)
+
+      integer ijlist(2,n),ncbox,nboxes
+      complex *16 rhs(ncbox,n),fcoefs(ncbox,nboxes)
+
+      do i=1,n
+        ibox = ijlist(1,i)
+        do j=1,ncbox
+          rhs(j,i) = fcoefs(j,ibox)
+        enddo
+      enddo
+
+      return
+      end
+c
+c
+c
+c
+c
+
+      subroutine gather_mploc_vals(n,ijlist,rmlexp,iaddr,imp,
+     1   ilevel,nboxes,nterms,nmp,mpvals)
+      implicit real *8 (a-h,o-z)
+      integer n,ijlist(2,n),iaddr(2,nboxes),imp,ilevel(nboxes)
+      integer nboxes,nterms(*)
+      real *8 rmlexp(*)
+      complex *16 mpvals(nmp,n),ima
+
+      data ima/(0.0d0,1.0d0)/
+
+
+      do i=1,n
+        ibox = ijlist(1,i)
+        istart = iaddr(imp,ibox)
+        do j=1,nmp
+          mpvals(j,i) = rmlexp(istart+2*j-2) + ima*rmlexp(istart+2*j-1)
+        enddo
+      enddo
+
+      return
+      end
+
