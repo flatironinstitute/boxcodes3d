@@ -34,7 +34,7 @@ c
 
 
 c**********************************************************************
-      subroutine cart2polar(zat,r,theta,phi)
+      subroutine sphcart2polar(zat,r,theta,phi)
 c**********************************************************************
 c
 c     Convert from Cartesian to spherical coordinates.
@@ -283,7 +283,7 @@ c
 
 
       do ipt=1,nn
-        call cart2polar(xpolg(1,ipt),r,theta,phi)
+        call sphcart2polar(xpolg(1,ipt),r,theta,phi)
         call eval_spherepol_basis(n,npols,r,theta,phi,pols)
 
 

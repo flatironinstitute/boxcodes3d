@@ -66,6 +66,7 @@ c     local
 
       call legetens_npol_3d(ndeg,type,npol)
 
+
       allocate(rs(3,nq3),ws(nq3))
       allocate(mpmat(nmp,nq3),fvalmatt(npol,nq3),pols(npol))
 
@@ -98,6 +99,8 @@ c     local
             fvalmatt(j,i) = pols(j)
          enddo
       enddo
+
+
 
       call zgemm('N','T',nmp,npol,nq3,one,mpmat,nmp,
      1     fvalmatt,npol,zero,mat,ldmat)
@@ -136,17 +139,25 @@ c                   Legendre points of order n
       integer nterms, n, nlege, ldmat
       real *8 wlege(*), rscale, bs
 c     local
-      real *8 x(3,n**3), w, u, v, bsh, center(3)
-      integer ldu, itype, i, n3, nd, i, j
+      real *8  w, u, v, bsh, center(3)
+      real *8, allocatable :: x(:,:)
+      integer ldu, itype, i, n3, nd, j,l,ii
       character type
-      complex *16, allocatable :: pot(:,:), locexp(:,:)
+      complex *16, allocatable :: pot(:,:), locexp(:,:,:)
       complex *16 zero, one
       data zero / (0.0d0,0.0d0) /
       data one / (1.0d0,0.0d0) /
-      data center / 3*0.0d0 /
+
 
       n3 = n**3
+      allocate(x(3,n3))
       bsh = bs/2.0d0
+
+      center(1) = 0
+      center(2) = 0
+      center(3) = 0
+
+
 
 c     grab points and scale them
 
@@ -162,16 +173,35 @@ c     grab points and scale them
          x(3,i) = x(3,i)*bsh
       enddo
 
+
 c     use vectorized routine to fill in (do by hand later if too slow)
 
       nd = (nterms+1)*(2*nterms+1)
-      allocate(pot(nd,n3),locexp(nd,nd))
+      allocate(pot(nd,n3),locexp(nd,0:nterms,-nterms:nterms))
 
       do i = 1,nd
-         do j = i,nd
-            locexp(j,i) = zero
-            if (j .eq. i) locexp(j,i) = one
+         do j = 0,nterms
+           do l=-nterms,nterms
+             locexp(i,j,l) = 0
+           enddo
          enddo
+      enddo
+
+      ii = 0
+      do j=-nterms,nterms
+        do l=0,nterms
+          ii = ii+1
+          if(abs(j).le.l) then
+            locexp(ii,l,j) = one
+          endif
+        enddo
+      enddo
+
+
+      do i=1,n3
+        do j=1,nd
+          pot(j,i) = 0
+        enddo
       enddo
 
       call h3dtaevalp(nd,zk,rscale,center,locexp,nterms,x,
@@ -182,6 +212,8 @@ c     use vectorized routine to fill in (do by hand later if too slow)
             mat(j,i) = pot(i,j)
          enddo
       enddo
+
+cc      call prin2('mat=*',mat,2*nd*n3)
 
       return
       end

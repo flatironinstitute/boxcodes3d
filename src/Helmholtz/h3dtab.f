@@ -134,7 +134,7 @@ c     memory for coeffs, etc.
          call legetens_spherepol(n,npol3,leg2sph)
          
          do jj = 1,npt
-            call cart2polar(x(1,jj),r,theta,phi)
+            call sphcart2polar(x(1,jj),r,theta,phi)
             call h3danti_sphere(ndeg,zk,r,theta,phi,ahelm)
             do ii = 1,npol3
                ahelms(ii,jj) = -pi4*ahelm(ii)
@@ -479,7 +479,7 @@ c     grab antihelmholtzian values
       allocate(ahpolsall(npol,npt2),der3(3,npol),ahderall(npol,npt2))
       
       do i = 1,npt2
-         call cart2polar(x(1,i),r,theta,phi)
+         call sphcart2polar(x(1,i),r,theta,phi)
          call h3danti_sphere_wder(ndegahelm,zk,r,theta,phi,
      1        ahpolsall(1,i),der3)
          do j = 1,npol
