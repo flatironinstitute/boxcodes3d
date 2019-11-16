@@ -49,7 +49,7 @@ c
       character type
 c     local
       integer ndeg, npol, nq3, nmp, nstemp, nd, i, j, ldu, itype
-      real *8, allocatable :: rs(:,:), ws(:), pols(:)
+      real *8, allocatable :: rs(:,:), ws(:), pols(:),rs2(:,:)
       real *8 center(3), utemp, vtemp
       complex *16, allocatable :: mpmat(:,:), fvalmatt(:,:)
       complex *16 zero, one, ctemp, bsh, bsh3
@@ -67,7 +67,7 @@ c     local
       call legetens_npol_3d(ndeg,type,npol)
 
 
-      allocate(rs(3,nq3),ws(nq3))
+      allocate(rs(3,nq3),ws(nq3),rs2(3,nq3))
       allocate(mpmat(nmp,nq3),fvalmatt(npol,nq3),pols(npol))
 
       itype = 1
@@ -77,9 +77,9 @@ c     local
 
       do i = 1,nq3
          ws(i) = ws(i)*bsh3
-         rs(1,i) = rs(1,i)*bsh
-         rs(2,i) = rs(2,i)*bsh
-         rs(3,i) = rs(3,i)*bsh
+         rs2(1,i) = rs(1,i)*bsh
+         rs2(2,i) = rs(2,i)*bsh
+         rs2(3,i) = rs(3,i)*bsh
       enddo
       
       nstemp = 1
@@ -89,10 +89,11 @@ c     local
             mpmat(j,i) = zero
          enddo
          ctemp = ws(i)
-         call h3dformmpc(nd,zk,rscale,rs(1,i),ctemp,
+         call h3dformmpc(nd,zk,rscale,rs2(1,i),ctemp,
      1        nstemp,center,nterms,mpmat(1,i),wlege,nlege)
       enddo
-      
+     
+
       do i = 1,nq3
          call legetens_pols_3d(rs(1,i),ndeg,type,pols)
          do j = 1,npol

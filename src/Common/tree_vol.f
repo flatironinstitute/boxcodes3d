@@ -1988,8 +1988,8 @@ c
       do i=istart,iend
         if(list1(itype,i).gt.0) then
           n = n+1
-          ijlist(1,i) = i
-          ijlist(2,i) = list1(itype,i)
+          ijlist(1,n) = i
+          ijlist(2,n) = list1(itype,i)
         endif
       enddo
 

@@ -18,7 +18,7 @@ ifeq ($(HOST),linux-gfortran)
 FC = gfortran
 FFLAGS = -fPIC -O3 -march=native -funroll-loops -c -w  
 FLINK = gfortran -w -o $(EXEC) 
-FEND = -lopenblas 
+FEND = -lopenblas -L/usr/local/opt/openblas/lib 
 endif
 
 ifeq ($(HOST),linux-gfortran-prof)
@@ -87,6 +87,7 @@ SOURCES =  test_helm_volfmm3d.f \
   $(UTILS_DIR)/hkrand.f \
   $(UTILS_DIR)/dlaran.f \
   $(SRC)/Common/aquad.f \
+  $(SRC)/Common/cerf.f90 \
 
 ifeq ($(WITH_SECOND),1)
 SOURCES += $(SRC)/second-r8.f

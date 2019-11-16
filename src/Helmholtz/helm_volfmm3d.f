@@ -68,6 +68,9 @@ c
       double precision, allocatable :: mptemp(:),mptemp2(:)
 
       double precision, allocatable :: wlege(:)
+
+      double precision xtargtmp(3)
+      complex *16 pottmp,pottmpex
       character *1 type
       double precision, allocatable :: xnodes(:),wts(:)
 
@@ -117,7 +120,7 @@ c
      1   tabstob(:,:,:)
       complex *16, allocatable :: tabtmp(:,:),tamat(:,:)
       complex *16, allocatable :: rhs(:,:),vals(:,:)
-      complex *16 ac,bc
+      complex *16 ac,bc,ima
 
       integer nquad2,ifinit2
 
@@ -135,6 +138,8 @@ c
       double precision timeinfo(8)
 
       integer iref(100),idimp(3,100),iflip(3,100)
+
+      data ima/(0.0d0,1.0d0)/
 
 
 
@@ -204,9 +209,9 @@ c       the levels
 c
 
       allocate(rscales(0:nlevels),nterms(0:nlevels))
-      call prinf('nboxes=*',nboxes,1)
-      call prinf('nlevels=*',nlevels,1)
-      call prin2('zk=*',zk,2)
+cc      call prinf('nboxes=*',nboxes,1)
+cc      call prinf('nlevels=*',nlevels,1)
+cc      call prin2('zk=*',zk,2)
 
 
  
@@ -218,8 +223,8 @@ c
         call h3dterms(boxsize(ilev),zk,eps,nterms(ilev))
         if(nterms(ilev).gt.nmax) nmax = nterms(ilev)
       enddo
-      call prinf('nterms=*',nterms,nlevels+1)
-      call prin2('rscales=*',rscales,nlevels+1)
+cc      call prinf('nterms=*',nterms,nlevels+1)
+cc      call prin2('rscales=*',rscales,nlevels+1)
 
       allocate(rsc(0:nmax))
 
@@ -306,7 +311,7 @@ cc      call prinf('ilevrel=*',ilevrel,nlevels+1)
       do ilev=2,nlevels
         nmp  = (nterms(ilev)+1)*(2*nterms(ilev)+1)
         if(ilevrel(ilev).eq.1) then
-          nq = 20
+          nq = 30
           allocate(mpcoefsmat(nmp,ncbox))
 
 cc          call prinf('ilev=*',ilev,1)
@@ -382,10 +387,45 @@ C$OMP$PRIVATE(ibox,i,jbox,nchild)
 C$OMP END PARALLEL DO          
       enddo
 
+
+
       call cpu_time(time2)
 C$    time2=omp_get_wtime()
       timeinfo(3)=time2-time1
 
+
+      xtargtmp(1) = 50.1d0
+      xtargtmp(2) = 3.2d0
+      xtargtmp(3) = 2.1d0
+
+      x = xtargtmp(1)-0.01d0
+      y = xtargtmp(2)
+      z = xtargtmp(3)
+      
+      r = sqrt(x**2 + y**2 + z**2)
+
+      ss = 1.0d0/13.0d0
+
+      
+      c = exp(-zk**2/2.0d0*ss**2)*(2.0d0*pi)**1.5d0*ss**3
+      pottmpex = ima*c/r*sin(zk*r)
+
+      print *, c
+      print *, ima
+      print *, r
+      print *, zk
+
+      thresh = 1.0d-16
+
+      pottmp = 0.0d0
+      
+      call h3dmpevalp(nd,zk,rscales(0),centers,rmlexp(iaddr(1,1)),
+     1   nterms(0),xtargtmp,1,pottmp,wlege,nlege,thresh)
+
+      call prin2('pottmp=*',pottmp,2)
+      call prin2('pottmpex=*',pottmpex,2)
+      erra = abs(imag(pottmpex-pottmp))/abs(pottmpex)
+      call prin2('error=*',erra,1)
 
       if(ifprint.ge.1)
      $    call prinf('=== Step 4 (mp to loc) ===*',i,0)
@@ -395,7 +435,6 @@ c       expansions
       call cpu_time(time1)
 C$        time1=omp_get_wtime()
       do ilev = 2,nlevels
-         print *, ilev
 
 c
 cc       load the necessary quadrature for plane waves
@@ -596,7 +635,6 @@ C$OMP$PRIVATE(nn12,n12,nn56,n56,ns34,s34,ns78,s78,ne13,e13,ne57,e57)
 C$OMP$PRIVATE(nw24,w24,nw68,w68,ne1,e1,ne3,e3,ne5,e5,ne7,e7)
 C$OMP$PRIVATE(nw2,w2,nw4,w4,nw6,w6,nw8,w8)
             do ibox = itree(2*ilev-1),itree(2*ilev)
-               print *, ibox
            
                nchild = itree(iptr(4)+ibox-1)
                if(nchild.gt.0) then
@@ -756,9 +794,9 @@ c
           
 cc          call prin2('tamat=*',tamat(1,+1),npbox*2)
           
-          call prinf('neval=*',neval,1)
-          call prinf('nboxes=*',nboxes,1)
-          call prinf('nmp=*',nmp,1)
+cc          call prinf('neval=*',neval,1)
+cc          call prinf('nboxes=*',nboxes,1)
+cc          call prinf('nmp=*',nmp,1)
           imp = 2
           call gather_mploc_vals(neval,ijboxlist,rmlexp,iaddr,imp,
      1      itree(iptr(2)),nboxes,nterms,nmp,rhs)
@@ -768,7 +806,7 @@ cc          call prin2('tamat=*',tamat(1,+1),npbox*2)
           call zgemm('n','n',npbox,neval,nmp,ac,tamat,npbox,
      1       rhs,nmp,bc,vals,npbox)
 
-          call prin2('vals=*',vals,2*neval*npbox)
+cc          call prin2('vals=*',vals,2*neval*npbox)
           call scatter_vals(neval,ijboxlist,pot,npbox,nboxes,vals)
 
           deallocate(rhs,vals)
@@ -819,34 +857,21 @@ c        if number of boxes in list1 > 0 at this level,
 c          then compute near field quadrature
 
         if(nlist1lev.gt.0) then
-
+          print *, "ilev= ",ilev
           zk2 = zk*boxsize(ilev)/2.0d0
           ac = boxsize(ilev)**2/4.0d0
           bc = 0
-          call prin2('zk2=*',zk2,2)
-          call prinf('ndeg=*',ndeg,1)
-          call prin2('eps=*',eps,1)
-          call prinf('ntarg0=*',ntarg0,1)
           call h3dtabp_ref(ndeg,zk2,eps,tab,ntarg0)
-
-cc          call prin2('tab=*',tab,ntarg0*npbox*2)
-cc
-          call prinf('ntarg0=*',ntarg0,1)
-          call prinf('npbox=*',npbox,1)
-          call prinf('ncbox=*',ncbox,1)
           call splitreftab3d(tab,ntarg0,tabcoll,tabbtos,tabstob,
      1        npbox,ncbox)
-          call prin2('tabcoll=*',tabcoll,4*npbox*ncbox*2)
-       
           
           call prin2('done splitting table*',i,0)
-          call prinf('ntarg0=*',ntarg0,1)
 
 c
 c           extract subtype of boxes in list1
 c
           iboxstart = itree(2*ilev+1)
-          iboxend = itree(2*ilev+2) - 1
+          iboxend = itree(2*ilev+2) 
 
 c
 c           handle colleagues
@@ -859,14 +884,14 @@ c
 
             if(ntype.gt.0) then
                allocate(rhs(ncbox,ntype),vals(npbox,ntype))
-               print *,iref(ibtype),idimp(1:3,ibtype),iflip(1:3,ibtype)
-               call prinf('iref=*',iref(ibtype),1)
+cc               print *,iref(ibtype),idimp(1:3,ibtype),iflip(1:3,ibtype)
+cc               call prinf('iref=*',iref(ibtype),1)
 
                call buildtabfromsyms3d(ndeg,type,iref(ibtype),
      1           idimp(1,ibtype),iflip(1,ibtype),tabcoll,tabtmp,
      2           npbox,ncbox)
-               call prinf('ibtype=*',ibtype,1)
-               call prin2('tabtmp=*',tabtmp,npbox*ncbox*2)
+cc               call prinf('ibtype=*',ibtype,1)
+cc               call prin2('tabtmp=*',tabtmp,npbox*ncbox*2)
                
                call gather_vals(ntype,ijboxlist,fcoefs,ncbox,nboxes,rhs)
 
@@ -887,8 +912,9 @@ cc               call prin2('vals=*',vals,2*npbox*ntype)
         endif
       enddo
 
-      call prin2('pot=*',pot,2*npbox*nboxes)
-          stop
+
+
+cc      call prin2('pot=*',pot,2*npbox*nboxes)
 
       call prin2('done with fmm*',i,0)
 

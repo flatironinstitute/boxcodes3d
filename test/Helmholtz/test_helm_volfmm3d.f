@@ -4,18 +4,25 @@
       integer, allocatable :: itree(:)
       real *8, allocatable :: fvals(:,:,:),centers(:,:),boxsize(:)
       real *8, allocatable :: umat(:,:),vmat(:,:),xref(:,:),wts(:)
+      real *8 xyztmp(3)
       complex *16 zk,zpars
 
       complex *16, allocatable :: pot(:,:),potex(:,:)
+      complex *16 ima,zz
 
       real *8 alpha,beta
 
       character *1, type
       real *8, allocatable :: fcoefs(:,:,:)
+      data ima/(0.0d0,1.0d0)/
 
       external fgaussn,fgauss1
+      logical flag
 
       call prini(6,13)
+
+      done = 1
+      pi = atan(done)*4
 
 c
 c      initialize function parameters
@@ -23,27 +30,27 @@ c
       boxlen = 1.0d0
 
       nd = 2
-      dpars(1) = 0.03d0
-      dpars(2) = -0.17d0
-      dpars(3) = 0.23d0
+      dpars(1) = 0.01d0
+      dpars(2) = 0.0d0
+      dpars(3) = 0.0d0
       do i=1,3
         dpars(3+i) = dpars(i)
       enddo
 
-      dpars(7) = 3.0d0
-      dpars(8) = 3.0d0
+      dpars(7) = 1.0d0/13.0d0
+      dpars(8) = 1.0d0/13.0d0
 
       zk = 2.1d0
-      norder = 4
+      norder = 6
       iptype = 1
-      eta = 1
+      eta = 2.0d0
 
 
       zkeff = zk*boxlen
 
       npbox = norder*norder*norder
 
-      eps = 1.0d-5
+      eps = 1.0d-4
       call cpu_time(t1)
 C$      t1 = omp_get_wtime()
 
@@ -74,6 +81,8 @@ C$      t2 = omp_get_wtime()
       call prin2('speed in points per sec=*',
      1   (nboxes*norder**3+0.0d0)/(t2-t1),1)
 
+      eps = 1.0d-6
+
 
 c
 c
@@ -98,13 +107,24 @@ c
 
 cc      print *,npols,npbox,nd
 
-      alpha = 1
+      alpha = 1.0d0
       beta = 0
       do ibox=1,nboxes
         call dgemm('n','t',nd,npols,npbox,alpha,fvals(1,1,ibox),
      1     nd,umat,npols,beta,fcoefs(1,1,ibox),nd)
 
+c
+c       test fcoefs values at a few random points in the box
+c  
+        xyztmp(1) = centers(1,ibox) + (hkrand(0)-0.5d0)*0.125d0
+        xyztmp(2) = centers(1,ibox) + (hkrand(0)-0.5d0)*0.125d0
+        xyztmp(3) = centers(1,ibox) + (hkrand(0)-0.5d0)*0.125d0
+
+        x = (xyztmp(1) - centers(1,ibox))*1.0d0 
       enddo
+
+
+      
 
 
       allocate(pot(npbox,nboxes))
@@ -116,12 +136,18 @@ cc      print *,npols,npbox,nd
       enddo
 
 
-
-      
+      call cpu_time(t1) 
       call helmholtz_volume_fmm(eps,zk,nboxes,nlevels,ltree,itree,
      1   iptr,norder,npols,type,fcoefs,centers,boxsize,npbox,
      2   pot)
+      call cpu_time(t2) 
+      call prin2('time taken in fmm=*',t2-t1,1)
+
+      nlfbox = itree(2*nlevels+2)-itree(2*nlevels+1)+1
+      call prin2('speed in pps=*',(npbox*nlfbox+0.0d0)/(t2-t1),1)
  1000 continue
+
+    
 
 c
 c
@@ -129,18 +155,55 @@ c   write potential to file, error will be compared in matlab/python
 c   since error function of complex argument is requried
 c
 
- 2623 format(4(2x,d22.16))
+ 2623 format(6(2x,e11.5))
+ 2625 format(2(2x,e11.5))
+
+      erra = 0.0d0
+      ra = 0.0d0
+
+      allocate(potex(npbox,nboxes))
+
+      ss = dpars(7)
+      c = exp(-ss**2*zk**2/2.0d0)*ss**3*(2.0d0*pi)**1.5d0
+
       do ibox=itree(2*nlevels+1),itree(2*nlevels+2)
-        print *, ibox,npbox,boxsize(nlevels)
-        print *, centers(1:3,ibox)
         do j=1,npbox
-          if(ibox.eq.9) print *, xref(1,j),xref(2,j),xref(3,j)
           x = centers(1,ibox) + xref(1,j)*boxsize(nlevels)/2.0d0
           y = centers(2,ibox) + xref(2,j)*boxsize(nlevels)/2.0d0
           z = centers(3,ibox) + xref(3,j)*boxsize(nlevels)/2.0d0
-          write(33,2623) x,y,z,real(pot(j,ibox))
+
+          dx = x - dpars(1)
+          dy = y - dpars(2)
+          dz = z - dpars(3)
+
+          r = sqrt(dx**2 + dy**2 + dz**2)
+
+          zz = ima*(ss*ima*zk/sqrt(2.0d0)-r/sqrt(2.0d0)/ss)
+          uu = 0
+          vv = 0
+          xx = real(zz)
+          yy = imag(zz)
+          call wofz(xx,yy,uu,vv,flag)
+
+
+          zz = (1.0d0-(uu + ima*vv)*exp(zz**2))*exp(-ima*zk*r)
+          potex(j,ibox) = c/r*(-real(zz)+ima*sin(zk*r))
+
+          rr1 = imag(potex(j,ibox))
+          rr2 = imag(pot(j,ibox))
+
+
+          erra = erra + abs(pot(j,ibox)-potex(j,ibox))**2
+cc          erra = erra + abs(rr1-rr2)**2
+          ra = ra + abs(potex(j,ibox))**2
+          write(33,2623) x,y,z,rr1,rr2,rr1/rr2
+          write(34,2625) real(pot(j,ibox)),imag(pot(j,ibox))
+          write(35,2625) real(potex(j,ibox)),imag(potex(j,ibox))
         enddo
       enddo
+
+      erra = sqrt(erra/ra)
+      call prin2('erra=*',erra,1)
 
       stop
       end
