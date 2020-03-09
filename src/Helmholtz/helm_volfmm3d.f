@@ -139,11 +139,16 @@ c
 
       integer iref(100),idimp(3,100),iflip(3,100)
 
+      integer cntlist4
+      double complex pgboxwexp(100)
+
       data ima/(0.0d0,1.0d0)/
 
 
 
       ifprint = 1
+
+      cntlist4 = 0
 
       done = 1
       pi = atan(done)*4
@@ -199,6 +204,8 @@ c
      2   itree(iptr(5)),isep,itree(iptr(6)),mnbors,itree(iptr(7)),
      3   nlist1,mnlist1,list1,nlist2,mnlist2,list2,
      4   nlist3,mnlist3,list3,nlist4,mnlist4,list4)
+
+      call prinf('mnlist4=*',mnlist4,1)
 
 
       allocate(ijboxlist(2,nboxes))
@@ -659,7 +666,8 @@ C$OMP$PRIVATE(nw2,w2,nw4,w4,nw6,w6,nw8,w8)
      4            nuall,uall,nu1234,u1234,ndall,dall,nd5678,d5678,
      5            mexpf1,mexpf2,mexpp1,mexpp2,mexppall(1,1,1),
      6            mexppall(1,1,2),mexppall(1,1,3),mexppall(1,1,4),
-     7            xshift,yshift,zshift,fexpback,rlsc)
+     7            xshift,yshift,zshift,fexpback,rlsc,pgboxwexp,
+     8            cntlist4,list4,nlist4,list4,mnlist4)
                   
                   call hprocessnsexp(nd,zk2,ibox,ilev,nboxes,centers,
      1            itree(iptr(5)),rscales(ilev),boxsize(ilev),
@@ -672,7 +680,9 @@ C$OMP$PRIVATE(nw2,w2,nw4,w4,nw6,w6,nw8,w8)
      7            mexppall(1,1,2),mexppall(1,1,3),mexppall(1,1,4),
      8            mexppall(1,1,5),mexppall(1,1,6),mexppall(1,1,7),
      9            mexppall(1,1,8),rdplus,xshift,yshift,zshift,
-     9            fexpback,rlsc)
+     9            fexpback,rlsc,pgboxwexp,cntlist4,list4,nlist4,list4,
+     9            mnlist4)
+
 
                   call hprocessewexp(nd,zk2,ibox,ilev,nboxes,centers,
      1            itree(iptr(5)),rscales(ilev),boxsize(ilev),
@@ -690,7 +700,8 @@ C$OMP$PRIVATE(nw2,w2,nw4,w4,nw6,w6,nw8,w8)
      9            mexppall(1,1,10),mexppall(1,1,11),mexppall(1,1,12),
      9            mexppall(1,1,13),mexppall(1,1,14),mexppall(1,1,15),
      9            mexppall(1,1,16),rdminus,xshift,yshift,zshift,
-     9            fexpback,rlsc)
+     9            fexpback,rlsc,pgboxwexp,cntlist4,list4,nlist4,list4,
+     9            mnlist4)
                endif
             enddo
 C$OMP END PARALLEL DO       

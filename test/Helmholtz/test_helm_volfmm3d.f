@@ -41,7 +41,7 @@ c
       dpars(8) = 1.0d0/13.0d0
 
       zk = 2.1d0
-      norder = 6
+      norder = 8
       iptype = 1
       eta = 2.0d0
 
@@ -50,7 +50,7 @@ c
 
       npbox = norder*norder*norder
 
-      eps = 1.0d-4
+      eps = 1.0d-6
       call cpu_time(t1)
 C$      t1 = omp_get_wtime()
 

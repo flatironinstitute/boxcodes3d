@@ -32,7 +32,7 @@ ifeq ($(HOST),linux-gfortran-openmp)
 FC = gfortran
 FFLAGS = -O3 -march=native -funroll-loops -ftree-vectorize -ffast-math -c -w  --openmp
 FLINK = gfortran -w --openmp -o $(EXEC) 
-FEND = -lblas -llapack
+FEND = -lopenblas -llapack
 endif
 
 ifeq ($(HOST),linux-ifort)
