@@ -976,7 +976,7 @@ c
 c     boxsize     in: double precision(0:;nlevels)
 c                 Array of boxsizes
 c 
-c     centers     in: double precision(2,nboxes)
+c     centers     in: double precision(3,nboxes)
 c                 array of centers of boxes
 c   
 c     iparent     in: integer(nboxes)
@@ -986,7 +986,7 @@ c
 c     nchild      in: integer(nboxes)
 c                 nchild(i) is the number of children of box i
 c
-c     ichild      in: integer(4,nboxes)
+c     ichild      in: integer(8,nboxes)
 c                 ichild(j,i) is the box id of the jth child of
 c                 box i
 c

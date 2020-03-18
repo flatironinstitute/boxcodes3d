@@ -157,6 +157,11 @@ c
       allocate(xnodes(max_nodes))
       allocate(wts(max_nodes))
 
+      do i=1,8
+        timeinfo(i) = 0
+      enddo
+
+
 c
 c      temporary measure for code consistency
 c
@@ -288,6 +293,8 @@ c
 c
 c        step 1: convert coeffs to multipole expansions
 c
+      call cpu_time(time1)
+C$     time1 = omp_get_wtime()      
     
       if(ifprint.ge.1) 
      $   call prinf("=== STEP 1 (coefs -> mp) ====*",i,0)
@@ -311,7 +318,7 @@ cc      call prinf('ilevrel=*',ilevrel,nlevels+1)
       do ilev=2,nlevels
         nmp  = (nterms(ilev)+1)*(2*nterms(ilev)+1)
         if(ilevrel(ilev).eq.1) then
-          nq = 30
+          nq = 8
           allocate(mpcoefsmat(nmp,ncbox))
 
 cc          call prinf('ilev=*',ilev,1)
@@ -340,6 +347,11 @@ cc          print *, size(mpcoefsmat)
           enddo
         endif
       enddo
+
+      call cpu_time(time2)
+C$     time2 = omp_get_wtime()   
+
+      timeinfo(1) = time2-time1
 
 
 c       
@@ -773,6 +785,9 @@ c
 c
 c       step 7 evaluate local expansions
 c
+
+      call cpu_time(time1)
+C$      time1 = omp_get_wtime()      
       if(ifprint.ge.1)
      $    call prinf('=== Step 7 (loc eval) ===*',i,0)
       do ilev=0,nlevels
@@ -812,6 +827,10 @@ cc          call prin2('vals=*',vals,2*neval*npbox)
           deallocate(rhs,vals)
         endif
       enddo
+      call cpu_time(time2)
+C$      time2 = omp_get_wtime() 
+
+      timeinfo(7) = time2-time1
 
 
 
@@ -820,6 +839,8 @@ c
 c       step 8, handle list 1 procesing
 c 
 
+      call cpu_time(time1)
+C$      time1 = omp_get_wtime()      
       allocate(nlist1_detailed(nboxes),list1_detailed(139,nboxes))
 
       call get_list1(nboxes,nlevels,itree,ltree,iptr,
@@ -911,6 +932,17 @@ cc               call prin2('vals=*',vals,2*npbox*ntype)
           enddo
         endif
       enddo
+      call cpu_time(time2)
+C$      time2 = omp_get_wtime()    
+
+      timeinfo(8) = time2-time1
+
+      call prin2('time = *',timeinfo,8)
+      d = 0
+      do i=1,8
+        d = d + timeinfo(i)
+      enddo
+      call prin2('total time=*',d,1)
 
 
 

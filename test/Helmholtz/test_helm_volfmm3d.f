@@ -41,7 +41,7 @@ c
       dpars(8) = 1.0d0/13.0d0
 
       zk = 2.1d0
-      norder = 6
+      norder = 4
       iptype = 1
       eta = 2.0d0
 
@@ -81,7 +81,7 @@ C$      t2 = omp_get_wtime()
       call prin2('speed in points per sec=*',
      1   (nboxes*norder**3+0.0d0)/(t2-t1),1)
 
-      eps = 1.0d-6
+      eps = 1.0d-3
 
 
 c
@@ -144,6 +144,8 @@ c
       call prin2('time taken in fmm=*',t2-t1,1)
 
       nlfbox = itree(2*nlevels+2)-itree(2*nlevels+1)+1
+
+      print *, npbox,nlfbox
       call prin2('speed in pps=*',(npbox*nlfbox+0.0d0)/(t2-t1),1)
  1000 continue
 
