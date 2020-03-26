@@ -51,10 +51,11 @@ c            the potential is non-zero only in the leaf boxes
 c
 
       implicit real *8 (a-h,o-z)
+      integer nd
       real *8 eps
       complex *16 zk,zk2
       integer nboxes,nlevels,ltree
-      integer itree(ltree),iptr(8),ncbox,npbox
+      integer itree(ltree),iptr(8),ncbox,npbox,ncc
       complex *16 fcoefs(ncbox,nboxes)
       complex *16 pot(npbox,nboxes)
       double precision boxsize(0:nlevels),centers(3,nboxes)
@@ -116,6 +117,7 @@ c
       double precision, allocatable :: rsc(:)
       integer, allocatable :: ilevrel(:)
       complex *16, allocatable :: mpcoefsmat(:,:),tab(:,:)
+      complex *16, allocatable :: mpcoefsmatall(:,:,:)
       complex *16, allocatable :: tabcoll(:,:,:),tabbtos(:,:,:),
      1   tabstob(:,:,:)
       complex *16, allocatable :: tabtmp(:,:),tamat(:,:)
@@ -140,7 +142,8 @@ c
       integer iref(100),idimp(3,100),iflip(3,100)
 
       integer cntlist4
-      double complex pgboxwexp(100)
+      double complex, allocatable :: pgboxwexp(:,:,:,:)
+      double precision, allocatable :: fimat(:,:)
 
       data ima/(0.0d0,1.0d0)/
 
@@ -291,6 +294,15 @@ C$OMP END PARALLEL DO
 
       
 
+      call cpu_time(time1)
+C$    time1=omp_get_wtime()
+      ncc = 8*ncbox
+      allocate(fimat(ncbox,ncc))
+      call get_children_fcoef_interp_mat(norder,ncbox,ncc,fimat)
+      call cpu_time(time2)
+C$    time2=omp_get_wtime()
+      print *, "coefs interp mat time: ", time2-time1
+
 c
 c
 c        step 1: convert coeffs to multipole expansions
@@ -315,11 +327,12 @@ cc      call prinf('iptr=*',iptr,8)
 
 cc      call prinf('ilevrel=*',ilevrel,nlevels+1)
      
+      allocate(mpcoefsmatall((nmax+1)*(2*nmax+1),ncbox,2:nlevels))
       do ilev=2,nlevels
         nmp  = (nterms(ilev)+1)*(2*nterms(ilev)+1)
         if(ilevrel(ilev).eq.1) then
           nq = 30
-          allocate(mpcoefsmat(nmp,ncbox))
+cc          allocate(mpcoefsmat(nmp,ncbox))
 
 cc          call prinf('ilev=*',ilev,1)
 cc          call prin2('zk=*',zk,2)
@@ -334,17 +347,18 @@ cc          print *, size(mpcoefsmat)
 
 
           call h3ddensmpmat(zk,rscales(ilev),nterms(ilev),
-     1     boxsize(ilev),type,norder,nq,wlege,nlege,mpcoefsmat,
-     2     nmp)
+     1     boxsize(ilev),type,norder,nq,wlege,nlege,
+     2     mpcoefsmatall(1,1,ilev),nmp)
           do ibox = itree(2*ilev+1),itree(2*ilev+2)
             nchild = itree(iptr(4)+ibox-1)
             if(nchild.eq.0) then
                ac = 1.0d0
                bc = 0.0d0
-              call zgemv('n',nmp,ncbox,ac,mpcoefsmat,nmp,
+              call zgemv('n',nmp,ncbox,ac,mpcoefsmatall(1,1,ilev),nmp,
      1         fcoefs(1,ibox),1,bc,rmlexp(iaddr(1,ibox)),1) 
             endif
           enddo
+cc          deallocate(mpcoefsmat)
         endif
       enddo
 
@@ -559,6 +573,10 @@ cc           r1 = rscales(ilev)
            do i=1,nterms(ilev)
              rsc(i) = rsc(i-1)*r1
            enddo
+
+ccccccc    generate ilev-1 list4 type boxes' ghost children boxes' plan
+ccccccc    plan wave expantion
+ccccccc    end of pgboxwexp construction
 
            call prinf('before starting mp to pw*',i,0)
 
@@ -927,6 +945,7 @@ cc               call prin2('vals=*',vals,2*npbox*ntype)
 
 cc      call prin2('pot=*',pot,2*npbox*nboxes)
 
+      deallocate(fimat)
       call prin2('done with fmm*',i,0)
 
       return
