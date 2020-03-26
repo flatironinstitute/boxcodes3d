@@ -858,6 +858,78 @@ c
 
       return
       end
+
+c
+c
+c
+c
+c
+      subroutine get_children_fcoef_interp_mat(norder,ncbox,ncc,fimat)
+c
+c
+c       construct interpolation matrix from coefs on parent box to
+c       coefs on 8 children boxes
+c
+c        input
+c        norder: integer
+c           order of discretization
+c        ncbox: integer
+c           number of coefs per box = norder*(norder+1)(norder+2)/6
+c        ncc: integer
+c           number of coefs in chilren boxe = 8*ncbox
+c
+c        output
+c          fimat - double precision(ncbox,ncc)
+c             interpolation matrix
+c
+c
+      implicit real *8 (a-h,o-z)
+      integer norder,ncbox,ncc,npbox,npc
+      real *8 fimat(ncbox,ncc),cref(3,8),xyz(3)
+      real *8, allocatable :: umat(:,:),vmat(:,:),pmat(:,:)
+      real *8, allocatable :: xref(:,:),wts(:)
+      character *1 type,transa,transb
+
+      npbox = norder**3
+      npc = 8*npbox
+
+      allocate(xref(3,npbox),umat(ncbox,npbox))
+      allocate(pmat(ncbox,npc),wts(npbox))
+
+      type = 'T'
+      itype = 3
+      call legetens_exps_3d(itype,norder,type,xref,umat,ncbox,vmat,
+     1   npbox,wts)
+
+      transa = 'n'
+      transb = 't'
+
+      alpha = 1
+      beta = 0
+
+      do ic=1,8
+        ii = 2
+        jj = 2
+        if(ic.eq.1.or.ic.eq.2.or.ic.eq.5.or.ic.eq.6) ii=1
+        if(ic.lt.5) jj = 1
+        cref(1,ic) = (-1)**ic*0.5d0
+        cref(2,ic) = (-1)**ii*0.5d0
+        cref(3,ic) = (-1)**jj*0.5d0
+        do j=1,npbox
+          ipt = (ic-1)*npbox+j
+          do l=1,3
+            xyz(l) = cref(l,ic) + xref(l,j)*0.5d0
+          enddo
+          call legetens_pols_3d(xyz,norder-1,type,pmat(1,ipt))
+        enddo
+        call dgemm(transa,transb,ncbox,ncbox,npbox,alpha,umat,ncbox,
+     1       pmat(1,(ic-1)*npbox+1),ncbox,beta,fimat(1,(ic-1)*ncbox+1),
+     2       ncbox)
+      enddo
+
+      return
+      end
+
 c
 c
 c

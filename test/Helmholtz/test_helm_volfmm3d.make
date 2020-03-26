@@ -45,7 +45,7 @@ endif
 
 SRC = ../../src
 FMM3D = ../../../FMM3D/src
-UTILS_DIR = ../../../utils
+UTILS_DIR = ../../src/Common
 
 
 .PHONY: all clean list
