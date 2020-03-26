@@ -5,7 +5,7 @@ EXEC = vol_tree
 HOST=linux-gfortran
 #HOST=linux-ifort
 #HOST=linux-gfortran-prof
-#HOST=linux-gfortran-openmp
+HOST=linux-gfortran-openmp
 
 ifeq ($(HOST),osx)
 FC = gfortran
@@ -32,7 +32,7 @@ ifeq ($(HOST),linux-gfortran-openmp)
 FC = gfortran
 FFLAGS = -fPIC -O3 -march=native -c --openmp
 FLINK = gfortran -w --openmp -o $(EXEC) 
-FEND = -lopenblas 
+FEND = -lopenblas -L/usr/local/opt/openblas/lib 
 endif
 
 ifeq ($(HOST),linux-ifort)
