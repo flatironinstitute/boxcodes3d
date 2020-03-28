@@ -219,3 +219,198 @@ cc      call prin2('mat=*',mat,2*nd*n3)
       return
       end
 
+c
+c
+c
+c
+c
+c----------------------------------------------------------------------
+      subroutine h3dlist4pw_vol(ilev,nd,nexptotp,nexptot,nterms,nn,
+     1           nlams,nlevels,ilevlist4,itree,
+     2           nfourier,nphysical,ncbox,nmax,
+     3           rdminus,rdplus,rlsc,
+     4           xshift,yshift,zshift,
+     5           fexp,
+     6           mexpf1,mexpf2,tmp,tmp2,rsc,pgboxwexp,
+     7           cntlist4,fcoefs,fimat)
+      implicit none
+cccccc input/output variables
+      integer ilev
+      integer nd
+      integer nexptotp,nexptot,ncbox,nmax
+      integer nterms,nn,nlams,nlevels,cntlist4
+      integer ilevlist4(*),itree(*)
+      integer nfourier(*)
+      integer nphysical(*)
+      double precision rdminus(0:nn,0:nn,-nn:nn)
+      double precision rdplus(0:nn,0:nn,-nn:nn)
+      double precision rsc(*)
+      double precision fimat(ncbox,*)
+      double complex rlsc(0:nterms,0:nterms,nlams)
+      double complex xshift(-5:5,nexptotp)
+      double complex yshift(-5:5,nexptotp)
+      double complex zshift(5,nexptotp)
+      double complex fexp(*)
+      double complex mexpf1(nd,nexptot)
+      double complex mexpf2(nd,nexptot)
+      double complex tmp(nd,0:nterms,-nterms:nterms)
+      double complex tmp2(nd,0:nterms,-nterms:nterms)
+      double complex pgboxwexp(nd,nexptotp,cntlist4,6)
+      double complex mpcoefsmatall((nmax+1)*(2*nmax+1),ncbox,2:nlevels)
+      double complex fcoefs(ncbox,*)
+cccccc scoped function variables
+      integer ibox,jbox,i,idim,nlist3,nmp,ncc,fdim
+      integer istart,iend,npts,jstart,jend,npts0
+      double precision time1,time2,omp_get_wtime
+      double complex, allocatable :: gboxfcoefs(:,:)
+      double complex, allocatable :: gboxmexp(:,:)
+      double complex, allocatable ::  gboxwexp(:,:,:,:)
+
+      call cpu_time(time1)
+C$    time1=omp_get_wtime()
+      pgboxwexp=0d0
+      nmp=(nterms+1)*(2*nterms+1)
+      ncc=ncbox*8
+      fdim=2
+C$OMP PARALLEL DO DEFAULT(SHARED)
+C$OMP$PRIVATE(ibox,istart,iend,jbox,jstart,jend,npts,npts0,i)
+C$OMP$PRIVATE(gboxwexp,gboxmexp,gboxfcoefs)
+C$OMP$PRIVATE(mexpf1,mexpf2,tmp,tmp2)
+      do ibox=itree(2*ilev+1),itree(2*ilev+2)
+        if(ilevlist4(ibox).gt.0) then
+          allocate(gboxfcoefs(ncbox,8))
+          allocate(gboxmexp(nd*nmp,8))
+          allocate(gboxwexp(nd,nexptotp,6,8))
+          call dgemm('n','n',fdim,ncc,ncbox,1.0,fcoefs(1,ibox),fdim,
+     1         fimat,ncbox,0.0,gboxfcoefs(1,1),fdim)
+cccccc bad code, note gboxmexp is an array not scalar
+          gboxmexp=0
+          do i=1,8
+            call zgemv('n',nmp,ncbox,1.0,mpcoefsmatall(1,1,ilev+1),nmp,
+     1           gboxfcoefs(1,i),1,0.0,gboxmexp(1,i),1)
+ccc    convert to plane wave
+            call mpscale(nd,nterms,gboxmexp(1,i),
+     1           rsc,tmp)
+c
+cc              process up down for current box
+c
+            call hmpoletoexp(nd,tmp,nterms,nlams,nfourier,
+     1           nexptot,mexpf1,mexpf2,rlsc)
+
+            call hftophys(nd,mexpf1,nlams,nfourier,nphysical,
+     1           gboxwexp(1,1,1,i),fexp)
+
+            call hftophys(nd,mexpf2,nlams,nfourier,nphysical,
+     1           gboxwexp(1,1,2,i),fexp)
+
+            call hprocessgboxudexp(nd,gboxwexp(1,1,1,i),
+     1           gboxwexp(1,1,2,i),i,nexptotp,
+     2           pgboxwexp(1,1,jbox,1),
+     3           pgboxwexp(1,1,jbox,2),
+     4           xshift,yshift,zshift)
+c
+cc              process north-south for current box
+c
+            call rotztoy(nd,nterms,tmp,tmp2,rdminus)
+            call hmpoletoexp(nd,tmp2,nterms,nlams,nfourier,
+     1           nexptot,mexpf1,mexpf2,rlsc)
+
+            call hftophys(nd,mexpf1,nlams,nfourier,nphysical,
+     1           gboxwexp(1,1,3,i),fexp)
+
+            call hftophys(nd,mexpf2,nlams,nfourier,nphysical,
+     1           gboxwexp(1,1,4,i),fexp)
+
+            call hprocessgboxnsexp(nd,gboxwexp(1,1,3,i),
+     1           gboxwexp(1,1,4,i),i,nexptotp,
+     2           pgboxwexp(1,1,jbox,3),
+     3           pgboxwexp(1,1,jbox,4),
+     4           xshift,yshift,zshift)
+
+c
+cc              process east-west for current box
+
+            call rotztox(nd,nterms,tmp,tmp2,rdplus)
+            call hmpoletoexp(nd,tmp2,nterms,nlams,nfourier,
+     1           nexptot,mexpf1,mexpf2,rlsc)
+
+            call hftophys(nd,mexpf1,nlams,nfourier,nphysical,
+     1           gboxwexp(1,1,5,i),fexp)
+
+            call hftophys(nd,mexpf2,nlams,nfourier,nphysical,
+     1           gboxwexp(1,1,6,i),fexp)
+
+            call hprocessgboxewexp(nd,gboxwexp(1,1,5,i),
+     1           gboxwexp(1,1,6,i),i,nexptotp,
+     2           pgboxwexp(1,1,jbox,5),
+     3           pgboxwexp(1,1,jbox,6),
+     4           xshift,yshift,zshift)
+          enddo
+          deallocate(gboxfcoefs)
+          deallocate(gboxmexp)
+          deallocate(gboxwexp)
+        endif
+      enddo
+C$OMP END PARALLEL DO
+      call cpu_time(time2)
+C$    time2=omp_get_wtime()
+      return
+      end
+
+c
+c
+c
+c
+c
+c----------------------------------------------------------------------
+      subroutine h3dsplitboxp_vol(n,n3,iboxsrcind,iboxfl,
+     1           iboxsubcenters,iboxsrc)
+      implicit none
+      integer n,n3
+      real *8  w, u, v, center(3)
+      real *8 x(3,n3)
+      integer ldu, itype
+      character type
+      integer iboxsrcind(n3)
+      integer iboxfl(2,8)
+      double precision iboxsubcenters(3,8)
+      double precision iboxsrc(3,n3)
+      double precision bs
+
+      center(1) = 0
+      center(2) = 0
+      center(3) = 0
+      bs = 1.0
+
+      itype = 0
+      ldu = 1
+      type = 't'
+      call legetens_exps_3d(itype,n,type,x,u,ldu,
+     1     v,ldu,w)
+
+      call subdividebox(x,n3,center,bs,iboxsrcind,iboxfl,iboxsubcenters)
+      call dreorderf(3,n3,x,iboxsrc,iboxsrcind)
+
+      return
+      end
+
+c
+c
+c
+c
+c---------------------------------------------------------------------
+      subroutine scale_points(xin,xout,npts,rs)
+      implicit none
+      integer npts,i
+      double precision rs
+      double precision xin(3,npts)
+      double precision xout(3,npts)
+
+      do i = 1,npts
+         xout(1,i) = xin(1,i)*rs
+         xout(2,i) = xin(2,i)*rs
+         xout(3,i) = xin(3,i)*rs
+      enddo
+
+      return
+      end
