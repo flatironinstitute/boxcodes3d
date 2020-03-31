@@ -97,7 +97,7 @@ c
       double complex, allocatable :: rdminus2(:,:,:),zeyep(:)
       double complex, allocatable :: rdplus2(:,:,:)
       double precision, allocatable :: zmone(:)
-      integer nn,nnn
+      integer nn,nnn,ii
   
       double complex, allocatable :: rlams(:),whts(:)
 
@@ -140,6 +140,8 @@ c
       double precision timeinfo(8)
 
       integer iref(100),idimp(3,100),iflip(3,100)
+      integer irefbtos(100),idimpbtos(3,100),iflipbtos(3,100)
+      integer irefstob(100),idimpstob(3,100),iflipstob(3,100)
 
       integer cntlist4
       integer, allocatable :: ilevlist4(:)
@@ -962,6 +964,8 @@ c
 c      load table symmetries
 c
       call loadsymsc(iref,idimp,iflip)
+      call loadsymsbtos(irefbtos,idimpbtos,iflipbtos)
+      call loadsymsstob(irefstob,idimpstob,iflipstob)
 
       ndeg = norder - 1
       do ilev=0,nlevels
@@ -1026,6 +1030,73 @@ cc               call prin2('vals=*',vals,2*npbox*ntype)
 
                call scatter_vals(ntype,ijboxlist,pot,npbox,nboxes,vals)
 
+               deallocate(rhs,vals)
+               
+            endif
+          enddo
+c
+c           handle big to small
+c
+          do ibtype=1,56
+            ntype = 0
+            ii = ibtype + 27
+            call get_list1boxes_type(ii,iboxstart,iboxend,
+     1            nboxes,nlist1_detailed,
+     1            list1_detailed,ijboxlist,ntype)
+
+            if(ntype.gt.0) then
+               allocate(rhs(ncbox,ntype),vals(npbox,ntype))
+
+               call buildtabfromsyms3d(ndeg,type,irefbtos(ibtype),
+     1           idimpbtos(1,ibtype),iflipbtos(1,ibtype),tabbtos,tabtmp,
+     2           npbox,ncbox)
+cc               call prinf('ibtype=*',ibtype,1)
+cc               call prin2('tabtmp=*',tabtmp,npbox*ncbox*2)
+               
+               call gather_vals(ntype,ijboxlist,fcoefs,ncbox,nboxes,rhs)
+
+cc               call prin2('rhs=*',rhs,ncbox*ntype*2)
+              
+               call zgemm('n','n',npbox,ntype,ncbox,ac,tabtmp,npbox,
+     1             rhs,ncbox,bc,vals,npbox)
+               
+cc               call prin2('vals=*',vals,2*npbox*ntype) 
+
+               call scatter_vals(ntype,ijboxlist,pot,npbox,nboxes,vals)
+
+               deallocate(rhs,vals)
+               
+            endif
+          enddo
+c
+c           handle small to big
+c
+          do ibtype=1,56
+            ntype = 0
+            ii = ibtype + 27 + 56
+            call get_list1boxes_type(ii,iboxstart,iboxend,
+     1            nboxes,nlist1_detailed,
+     1            list1_detailed,ijboxlist,ntype)
+
+            if(ntype.gt.0) then
+               allocate(rhs(ncbox,ntype),vals(npbox,ntype))
+
+               call buildtabfromsyms3d(ndeg,type,irefstob(ibtype),
+     1           idimpstob(1,ibtype),iflipstob(1,ibtype),tabstob,tabtmp,
+     2           npbox,ncbox)
+cc               call prinf('ibtype=*',ibtype,1)
+cc               call prin2('tabtmp=*',tabtmp,npbox*ncbox*2)
+               
+               call gather_vals(ntype,ijboxlist,fcoefs,ncbox,nboxes,rhs)
+
+cc               call prin2('rhs=*',rhs,ncbox*ntype*2)
+              
+               call zgemm('n','n',npbox,ntype,ncbox,ac,tabtmp,npbox,
+     1             rhs,ncbox,bc,vals,npbox)
+               
+cc               call prin2('vals=*',vals,2*npbox*ntype) 
+
+               call scatter_vals(ntype,ijboxlist,pot,npbox,nboxes,vals)
 
                deallocate(rhs,vals)
                

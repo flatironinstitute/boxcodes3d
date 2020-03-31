@@ -627,18 +627,18 @@ c
       enddo
 C$OMP END PARALLEL DO     
       
-      irefine = maxval(irefinebox(1:nbloc))
-
+cc      irefine = maxval(irefinebox(1:nbloc))
+c
 c
 c       make tree uniform
 c
-
-C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
-      do i=1,nbloc
-        irefinebox(i) = irefine
-      enddo
-C$OMP END PARALLEL DO      
-
+cc
+ccC$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
+cc      do i=1,nbloc
+cc        irefinebox(i) = irefine
+cc      enddo
+cC$OMP END PARALLEL DO      
+cc
 
       return
       end
