@@ -627,7 +627,7 @@ c
       enddo
 C$OMP END PARALLEL DO     
       
-cc      irefine = maxval(irefinebox(1:nbloc))
+      irefine = maxval(irefinebox(1:nbloc))
 c
 c
 c       make tree uniform
