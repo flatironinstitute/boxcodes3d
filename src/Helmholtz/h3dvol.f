@@ -289,8 +289,6 @@ C$OMP$PRIVATE(mexpf1,mexpf2,tmp,tmp2)
           allocate(gboxwexp(nd,nexptotp,6,8))
           call dgemm('n','n',fdim,ncc,ncbox,alpha,fcoefs(1,ibox),fdim,
      1         fimat,ncbox,beta,gboxfcoefs(1,1),fdim)
-cccccc bad code, note gboxmexp is an array not scalar
-          gboxmexp=0
           jbox=ilevlist4(ibox)
           do i=1,8
             call zgemv('n',nmp,ncbox,ac,mpcoefsmatall(1,1,ilev+1),

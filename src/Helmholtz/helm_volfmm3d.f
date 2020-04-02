@@ -225,6 +225,17 @@ c
      4   nlist3,mnlist3,list3,nlist4,mnlist4,list4)
 
       call prinf('mnlist4=*',mnlist4,1)
+      print *,itree(iptr(4)+0)
+      print *,itree(iptr(4)+1)
+      print *,itree(iptr(4)+2)
+      print *,itree(iptr(4)+3)
+      print *,itree(iptr(4)+4)
+      print *,itree(iptr(4)+5)
+      print *,itree(iptr(4)+6)
+      print *,itree(iptr(4)+7)
+      print *,itree(iptr(4)+8)
+      print *,itree(2*0+1),itree(2*0+2)
+      print *,itree(2*1+1),itree(2*1+2)
 
 
       allocate(ijboxlist(2,nboxes))

@@ -922,9 +922,10 @@ c
           enddo
           call legetens_pols_3d(xyz,norder-1,type,pmat(1,ipt))
         enddo
-        call dgemm(transa,transb,ncbox,ncbox,npbox,alpha,umat,ncbox,
-     1       pmat(1,(ic-1)*npbox+1),ncbox,beta,fimat(1,(ic-1)*ncbox+1),
-     2       ncbox)
+        call dgemm(transa,transb,ncbox,ncbox,npbox,alpha,
+     1       pmat(1,(ic-1)*npbox+1),ncbox,
+     2       umat,ncbox,beta,fimat(1,(ic-1)*ncbox+1),
+     3       ncbox)
       enddo
 
       return
