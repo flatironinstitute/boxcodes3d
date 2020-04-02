@@ -232,7 +232,7 @@ c----------------------------------------------------------------------
      4           xshift,yshift,zshift,
      5           fexp,
      6           mexpf1,mexpf2,tmp,tmp2,rsc,pgboxwexp,
-     7           cntlist4,fcoefs,fimat)
+     7           cntlist4,fcoefs,fimat,mpcoefsmatall)
       implicit none
 cccccc input/output variables
       integer ilev
@@ -262,9 +262,11 @@ cccccc scoped function variables
       integer ibox,jbox,i,idim,nlist3,nmp,ncc,fdim
       integer istart,iend,npts,jstart,jend,npts0
       double precision time1,time2,omp_get_wtime
+      double precision alpha,beta
       double complex, allocatable :: gboxfcoefs(:,:)
       double complex, allocatable :: gboxmexp(:,:)
       double complex, allocatable ::  gboxwexp(:,:,:,:)
+      double complex ac,bc
 
       call cpu_time(time1)
 C$    time1=omp_get_wtime()
@@ -272,6 +274,10 @@ C$    time1=omp_get_wtime()
       nmp=(nterms+1)*(2*nterms+1)
       ncc=ncbox*8
       fdim=2
+      ac=1.0d0
+      bc=0.0d0
+      alpha=1
+      beta=0
 C$OMP PARALLEL DO DEFAULT(SHARED)
 C$OMP$PRIVATE(ibox,istart,iend,jbox,jstart,jend,npts,npts0,i)
 C$OMP$PRIVATE(gboxwexp,gboxmexp,gboxfcoefs)
@@ -281,13 +287,14 @@ C$OMP$PRIVATE(mexpf1,mexpf2,tmp,tmp2)
           allocate(gboxfcoefs(ncbox,8))
           allocate(gboxmexp(nd*nmp,8))
           allocate(gboxwexp(nd,nexptotp,6,8))
-          call dgemm('n','n',fdim,ncc,ncbox,1.0,fcoefs(1,ibox),fdim,
-     1         fimat,ncbox,0.0,gboxfcoefs(1,1),fdim)
+          call dgemm('n','n',fdim,ncc,ncbox,alpha,fcoefs(1,ibox),fdim,
+     1         fimat,ncbox,beta,gboxfcoefs(1,1),fdim)
 cccccc bad code, note gboxmexp is an array not scalar
           gboxmexp=0
+          jbox=ilevlist4(ibox)
           do i=1,8
-            call zgemv('n',nmp,ncbox,1.0,mpcoefsmatall(1,1,ilev+1),nmp,
-     1           gboxfcoefs(1,i),1,0.0,gboxmexp(1,i),1)
+            call zgemv('n',nmp,ncbox,ac,mpcoefsmatall(1,1,ilev+1),
+     1           nmp,gboxfcoefs(1,i),1,bc,gboxmexp(1,i),1)
 ccc    convert to plane wave
             call mpscale(nd,nterms,gboxmexp(1,i),
      1           rsc,tmp)

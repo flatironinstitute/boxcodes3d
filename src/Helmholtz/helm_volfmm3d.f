@@ -609,7 +609,7 @@ ccccccc    plan wave expantion
      1          nn,nlams,nlevels,ilevlist4,itree,nfourier,nphysical,
      2          ncbox,nmax,rdminus,rdplus,rlsc,xshift,yshift,zshift,
      3          fexp,mexpf1,mexpf2,tmp,tmp2,rsc,pgboxwexp,cntlist4,
-     4          fcoefs,fimat)
+     4          fcoefs,fimat,mpcoefsmatall)
 ccccccc    end of pgboxwexp construction
 
            call prinf('before starting mp to pw*',i,0)
@@ -796,10 +796,10 @@ c
 
 ccccccc          evaluate iboxlexp
                  call scale_points(iboxsubcenters,subcenters,
-     1                3,boxsize(ilev))
+     1                8,boxsize(ilev))
                  call scale_points(iboxsrc,subpts,
-     1                3,boxsize(ilev))
-                 call dreorderf(2*nd,npts,pot(1,ibox),
+     1                npbox,boxsize(ilev))
+                 call dreorderf(2*nd,npbox,pot(1,ibox),
      1                iboxpot,iboxsrcind)
                  do i=1,8
                    jstart=iboxfl(1,i)
@@ -933,6 +933,7 @@ cc          call prinf('nmp=*',nmp,1)
 cc          call prin2('vals=*',vals,2*neval*npbox)
           call scatter_vals(neval,ijboxlist,pot,npbox,nboxes,vals)
 
+          deallocate(tamat)
           deallocate(rhs,vals)
         endif
       enddo
