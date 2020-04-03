@@ -71,7 +71,7 @@ c
       double precision, allocatable :: wlege(:)
 
       double precision xtargtmp(3)
-      complex *16 pottmp,pottmpex
+      complex *16 pottmp,pottmpex,pottmp2
       character *1 type
       double precision, allocatable :: xnodes(:),wts(:)
 
@@ -260,8 +260,8 @@ cc      call prin2('zk=*',zk,2)
         call h3dterms(boxsize(ilev),zk,eps,nterms(ilev))
         if(nterms(ilev).gt.nmax) nmax = nterms(ilev)
       enddo
-cc      call prinf('nterms=*',nterms,nlevels+1)
-cc      call prin2('rscales=*',rscales,nlevels+1)
+      call prinf('nterms=*',nterms,nlevels+1)
+      call prin2('rscales=*',rscales,nlevels+1)
 
       allocate(rsc(0:nmax))
 
@@ -348,7 +348,7 @@ cc      call prinf('iptr=*',iptr,8)
       allocate(ilevrel(0:nlevels))
       ilevrel(0) = 0
       ilevrel(1) = 0
-      do ilev = 2,nlevels
+      do ilev = 0,nlevels
         ilevrel(ilev) = 0
         do ibox = itree(2*ilev+1),itree(2*ilev+2)
           nchild = itree(iptr(4) + ibox-1)
@@ -358,8 +358,8 @@ cc      call prinf('iptr=*',iptr,8)
 
 cc      call prinf('ilevrel=*',ilevrel,nlevels+1)
      
-      allocate(mpcoefsmatall((nmax+1)*(2*nmax+1),ncbox,2:nlevels))
-      do ilev=2,nlevels
+      allocate(mpcoefsmatall((nmax+1)*(2*nmax+1),ncbox,0:nlevels))
+      do ilev=1,nlevels
         nmp  = (nterms(ilev)+1)*(2*nterms(ilev)+1)
         if(ilevrel(ilev).eq.1) then
           nq = 30
@@ -470,6 +470,7 @@ C$    time2=omp_get_wtime()
       thresh = 1.0d-16
 
       pottmp = 0.0d0
+
       
       call h3dmpevalp(nd,zk,rscales(0),centers,rmlexp(iaddr(1,1)),
      1   nterms(0),xtargtmp,1,pottmp,wlege,nlege,thresh)
@@ -478,6 +479,26 @@ C$    time2=omp_get_wtime()
       call prin2('pottmpex=*',pottmpex,2)
       erra = abs(imag(pottmpex-pottmp))/abs(pottmpex)
       call prin2('error=*',erra,1)
+
+      pottmp2 = 0
+      do ilev = 0,nlevels
+        do ibox=itree(2*ilev+1),itree(2*ilev+2)
+          nchild = itree(iptr(4)+ibox-1)
+          if(nchild.eq.0) then
+            call h3dmpevalp(nd,zk,rscales(ilev),centers(1,ibox),
+     1      rmlexp(iaddr(1,ibox)),nterms(ilev),xtargtmp,1,
+     2      pottmp2,wlege,nlege,thresh)
+          endif
+        enddo
+      enddo
+
+      call prin2('pottmp=*',pottmp2,2)
+      call prin2('pottmpex=*',pottmpex,2)
+      erra = abs(imag(pottmpex-pottmp2))/abs(pottmpex)
+      call prin2('error using leaf boxes=*',erra,1)
+
+
+      stop
 
       if(ifprint.ge.1)
      $    call prinf('=== Step 4 (mp to loc) ===*',i,0)
@@ -910,7 +931,7 @@ c       step 7 evaluate local expansions
 c
       if(ifprint.ge.1)
      $    call prinf('=== Step 7 (loc eval) ===*',i,0)
-      do ilev=0,nlevels
+      do ilev=2,nlevels
         neval = 0
         do ibox = itree(2*ilev+1),itree(2*ilev+2)
           nchild = itree(iptr(4)+ibox-1)

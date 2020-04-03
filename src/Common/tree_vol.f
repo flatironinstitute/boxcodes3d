@@ -567,6 +567,7 @@ c
       integer irefine
 
       integer i,j,k,l,ibox
+      integer ifunif
       real *8 rscale2,err,bs,bs2
       data xind/-1,1,-1,1,-1,1,-1,1/ 
       data yind/-1,-1,1,1,-1,-1,1,1/ 
@@ -628,17 +629,21 @@ c
 C$OMP END PARALLEL DO     
       
       irefine = maxval(irefinebox(1:nbloc))
+      ifunif = 0
 c
 c
 c       make tree uniform
 c
-cc
-ccC$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
-cc      do i=1,nbloc
-cc        irefinebox(i) = irefine
-cc      enddo
-cC$OMP END PARALLEL DO      
-cc
+
+      if(ifunif.eq.1) then
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
+      do i=1,nbloc
+        irefinebox(i) = irefine
+      enddo
+C$OMP END PARALLEL DO     
+      
+      endif
+
 
       return
       end
@@ -1577,7 +1582,7 @@ c     Rearrange old arrays now
             centers(3,curbox) = tcenters(3,ibox)
             do i=1,npbox
               do idim=1,nd
-                fvals(idim,i,ibox) = tfvals(idim,i,ibox)
+                fvals(idim,i,curbox) = tfvals(idim,i,ibox)
               enddo
             enddo
             iflag(curbox) = tiflag(ibox)
@@ -1593,7 +1598,7 @@ c     Rearrange old arrays now
             nchild(curbox) = tnchild(ibox)
             do i=1,npbox
               do idim=1,nd
-                fvals(idim,i,ibox) = tfvals(idim,i,ibox)
+                fvals(idim,i,curbox) = tfvals(idim,i,ibox)
               enddo
             enddo
             iflag(curbox) = tiflag(ibox)
