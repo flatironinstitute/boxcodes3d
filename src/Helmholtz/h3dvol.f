@@ -256,7 +256,7 @@ cccccc input/output variables
       double complex tmp(nd,0:nterms,-nterms:nterms)
       double complex tmp2(nd,0:nterms,-nterms:nterms)
       double complex pgboxwexp(nd,nexptotp,cntlist4,6)
-      double complex mpcoefsmatall((nmax+1)*(2*nmax+1),ncbox,2:nlevels)
+      double complex mpcoefsmatall((nmax+1)*(2*nmax+1),ncbox,0:nlevels)
       double complex fcoefs(ncbox,*)
 cccccc scoped function variables
       integer ibox,jbox,i,idim,nlist3,nmp,ncc,fdim

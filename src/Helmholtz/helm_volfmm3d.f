@@ -498,8 +498,6 @@ C$    time2=omp_get_wtime()
       call prin2('error using leaf boxes=*',erra,1)
 
 
-      stop
-
       if(ifprint.ge.1)
      $    call prinf('=== Step 4 (mp to loc) ===*',i,0)
 c      ... step 3, convert multipole expansions into local
