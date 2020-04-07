@@ -18,7 +18,7 @@ ifeq ($(HOST),linux-gfortran)
 FC = gfortran
 FFLAGS = -fPIC -O3 -march=native -funroll-loops -c -w  
 FLINK = gfortran -w -o $(EXEC) 
-FEND = -lopenblas -L/usr/local/opt/openblas/lib 
+FEND = -lopenblas -L/usr/local/opt/openblas/lib -L/usr/lib
 endif
 
 ifeq ($(HOST),linux-gfortran-prof)
