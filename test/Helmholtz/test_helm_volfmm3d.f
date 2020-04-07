@@ -166,39 +166,43 @@ c
       ss = dpars(7)
       c = exp(-ss**2*zk**2/2.0d0)*ss**3*(2.0d0*pi)**1.5d0
 
-      do ibox=itree(2*nlevels+1),itree(2*nlevels+2)
-        do j=1,npbox
-          x = centers(1,ibox) + xref(1,j)*boxsize(nlevels)/2.0d0
-          y = centers(2,ibox) + xref(2,j)*boxsize(nlevels)/2.0d0
-          z = centers(3,ibox) + xref(3,j)*boxsize(nlevels)/2.0d0
+      do ilevel=1,nlevels
+        do ibox=itree(2*ilevel+1),itree(2*ilevel+2)
+          if(itree(iptr(4)+ibox-1).eq.0) then
+            do j=1,npbox
+              x = centers(1,ibox) + xref(1,j)*boxsize(ilevel)/2.0d0
+              y = centers(2,ibox) + xref(2,j)*boxsize(ilevel)/2.0d0
+              z = centers(3,ibox) + xref(3,j)*boxsize(ilevel)/2.0d0
 
-          dx = x - dpars(1)
-          dy = y - dpars(2)
-          dz = z - dpars(3)
+              dx = x - dpars(1)
+              dy = y - dpars(2)
+              dz = z - dpars(3)
 
-          r = sqrt(dx**2 + dy**2 + dz**2)
+              r = sqrt(dx**2 + dy**2 + dz**2)
 
-          zz = ima*(ss*ima*zk/sqrt(2.0d0)-r/sqrt(2.0d0)/ss)
-          uu = 0
-          vv = 0
-          xx = real(zz)
-          yy = imag(zz)
-          call wofz(xx,yy,uu,vv,flag)
-
-
-          zz = (1.0d0-(uu + ima*vv)*exp(zz**2))*exp(-ima*zk*r)
-          potex(j,ibox) = c/r*(-real(zz)+ima*sin(zk*r))
-
-          rr1 = imag(potex(j,ibox))
-          rr2 = imag(pot(j,ibox))
+              zz = ima*(ss*ima*zk/sqrt(2.0d0)-r/sqrt(2.0d0)/ss)
+              uu = 0
+              vv = 0
+              xx = real(zz)
+              yy = imag(zz)
+              call wofz(xx,yy,uu,vv,flag)
 
 
-          erra = erra + abs(pot(j,ibox)-potex(j,ibox))**2
+              zz = (1.0d0-(uu + ima*vv)*exp(zz**2))*exp(-ima*zk*r)
+              potex(j,ibox) = c/r*(-real(zz)+ima*sin(zk*r))
+
+              rr1 = imag(potex(j,ibox))
+              rr2 = imag(pot(j,ibox))
+
+
+              erra = erra + abs(pot(j,ibox)-potex(j,ibox))**2
 cc          erra = erra + abs(rr1-rr2)**2
-          ra = ra + abs(potex(j,ibox))**2
-          write(33,2623) x,y,z,rr1,rr2,rr1/rr2
-          write(34,2625) real(pot(j,ibox)),imag(pot(j,ibox))
-          write(35,2625) real(potex(j,ibox)),imag(potex(j,ibox))
+              ra = ra + abs(potex(j,ibox))**2
+              write(33,2623) x,y,z,rr1,rr2,rr1/rr2
+              write(34,2625) real(pot(j,ibox)),imag(pot(j,ibox))
+              write(35,2625) real(potex(j,ibox)),imag(potex(j,ibox))
+            enddo
+          endif
         enddo
       enddo
 
