@@ -136,6 +136,8 @@ c
 
       integer, allocatable :: ijboxlist(:,:)
       double precision timeinfo(8)
+      double precision, allocatable :: ttabgen(:)
+      double precision tt1,tt2,tloctot
 
       integer iref(100),idimp(3,100),iflip(3,100)
 
@@ -143,6 +145,11 @@ c
       double complex pgboxwexp(100)
 
       data ima/(0.0d0,1.0d0)/
+
+      allocate(ttabgen(0:nlevels))
+      do i=0,nlevels
+        ttabgen(i) = 0
+      enddo
 
 
 
@@ -893,9 +900,16 @@ c          then compute near field quadrature
           zk2 = zk*boxsize(ilev)/2.0d0
           ac = boxsize(ilev)**2/4.0d0
           bc = 0
+
+          call cpu_time(tt1)
+C$          tt1 = omp_get_wtime()          
           call h3dtabp_ref(ndeg,zk2,eps,tab,ntarg0)
           call splitreftab3d(tab,ntarg0,tabcoll,tabbtos,tabstob,
      1        npbox,ncbox)
+          call cpu_time(tt2)
+C$          tt2 = omp_get_wtime()          
+          ttabgen(ilev) = tt2-tt1
+          
           
           call prin2('done splitting table*',i,0)
 
@@ -954,6 +968,11 @@ C$      time2 = omp_get_wtime()
         d = d + timeinfo(i)
       enddo
       call prin2('total time=*',d,1)
+
+      do i=0,nlevels
+        d = d-ttabgen(i)
+      enddo
+      call prin2('total time without table generation=*',d,1)
 
 
 

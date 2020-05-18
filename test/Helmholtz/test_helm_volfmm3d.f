@@ -40,6 +40,9 @@ c
       dpars(7) = 1.0d0/13.0d0
       dpars(8) = 1.0d0/13.0d0
 
+      dpars(7) = 0.05d0
+      dpars(8) = 0.05d0
+
       zk = 2.1d0
       norder = 8
       iptype = 1
@@ -81,7 +84,6 @@ C$      t2 = omp_get_wtime()
       call prin2('speed in points per sec=*',
      1   (nboxes*norder**3+0.0d0)/(t2-t1),1)
 
-      eps = 1.0d-3
 
 
 c
@@ -137,10 +139,12 @@ c
 
 
       call cpu_time(t1) 
+C$      t1 = omp_get_wtime()      
       call helmholtz_volume_fmm(eps,zk,nboxes,nlevels,ltree,itree,
      1   iptr,norder,npols,type,fcoefs,centers,boxsize,npbox,
      2   pot)
       call cpu_time(t2) 
+C$      t2 = omp_get_wtime()      
       call prin2('time taken in fmm=*',t2-t1,1)
 
       nlfbox = itree(2*nlevels+2)-itree(2*nlevels+1)+1
