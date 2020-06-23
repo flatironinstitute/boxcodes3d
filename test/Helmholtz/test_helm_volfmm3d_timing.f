@@ -1,6 +1,554 @@
-      subroutine helmholtz_volume_fmm(eps,zk,nboxes,nlevels,ltree,
+      implicit real *8 (a-h,o-z)
+      integer norders(3)
+      real *8 epss(4)
+      logical ifsphere
+      
+      norders(1) = 4
+      norders(2) = 6
+      norders(3) = 8
+      
+      epss(1) = 0.51d-3
+      epss(2) = 0.51d-6
+      epss(3) = 0.51d-9
+      epss(4) = 0.51d-12
+      
+      do i1 = 2,3
+        norder = norders(i1)
+        do i2 = 1,2
+          eps = epss(i2)
+          do i3 = 1,2 
+            if(i3.eq.1) ifsphere = .true.
+            if(i3.eq.2) ifsphere = .false.
+            call test_prog(eps,norder,ifsphere)
+          enddo
+        enddo
+      enddo
+
+
+
+      
+      stop
+      end
+
+      subroutine test_prog(eps,norder,ifsphere)
+
+      implicit real *8 (a-h,o-z)
+      real *8 dpars(1000)
+      integer iptr(9)
+      integer, allocatable :: itree(:)
+      real *8, allocatable :: fvals(:,:,:),centers(:,:),boxsize(:)
+      real *8, allocatable :: umat(:,:),vmat(:,:),xref(:,:),wts(:)
+      real *8 xyztmp(3),timeinfo(8)
+      real *8 ttabgen(0:200),tnear,tsvd
+      complex *16 zk,zpars
+
+      complex *16, allocatable :: pot(:,:),potex(:,:)
+      complex *16 ima,zz
+
+      real *8 alpha,beta
+
+      logical ifsphere
+
+      character *1, type
+      real *8, allocatable :: fcoefs(:,:,:)
+      data ima/(0.0d0,1.0d0)/
+
+      external fgaussn,fgauss1
+      logical flag
+
+      call prini(6,13)
+
+      done = 1
+      pi = atan(done)*4
+
+c
+c      initialize function parameters
+c
+      boxlen = 1.0d0
+
+      nd = 2
+      dpars(1) = 0.01d0
+      dpars(2) = 0.0d0
+      dpars(3) = 0.0d0
+      do i=1,3
+        dpars(3+i) = dpars(i)
+      enddo
+
+      dpars(7) = 1.0d0/13.0d0
+      dpars(8) = 1.0d0/13.0d0
+
+      zk = 2.1d0
+      iptype = 1
+      eta = 2.0d0
+
+
+      zkeff = zk*boxlen
+
+      npbox = norder*norder*norder
+
+      call cpu_time(t1)
+C$      t1 = omp_get_wtime()
+
+
+      call vol_tree_mem(eps,zk,boxlen,norder,iptype,eta,
+     1   fgaussn,nd,dpars,zpars,ipars,nlevels,nboxes,ltree)
+
+      call prinf('nboxes=*',nboxes,1)
+      call prinf('nlevels=*',nlevels,1)
+
+
+      allocate(fvals(nd,npbox,nboxes),centers(3,nboxes))
+      allocate(boxsize(0:nlevels),itree(ltree))
+
+      call vol_tree_build(eps,zk,boxlen,norder,iptype,eta,fgaussn,nd,
+     1  dpars,zpars,ipars,nlevels,nboxes,ltree0,itree,iptr,fvals,
+     2  centers,boxsize)
+      
+      call cpu_time(t2)
+C$      t2 = omp_get_wtime()      
+
+      do i=1,nboxes
+        do j=1,npbox
+          fvals(2,j,i) = 0
+        enddo
+      enddo
+      call prin2('time taken to build tree=*',t2-t1,1)
+      nlfbox = itree(2*nlevels+2)-itree(2*nlevels+1)+1
+      npbox = norder**3
+      call prin2('speed in points per sec=*',
+     1   (nlfbox*npbox+0.0d0)/(t2-t1),1)
+      
+      ttree = t2-t1
+
+
+
+c
+c
+c       convert values to coefs
+c
+      
+      npols = norder*(norder+1)*(norder+2)/6
+
+      allocate(xref(3,npbox),umat(npols,npbox),vmat(npbox,npols))
+      allocate(wts(npbox))
+
+      allocate(fcoefs(nd,npols,nboxes))
+
+      type = 'T'
+      itype = 2
+      call legetens_exps_3d(itype,norder,type,xref,umat,npols,vmat,
+     1   npbox,wts)
+      call prinf('norder=*',norder,1)
+      call prinf('npbox=*',npbox,1)
+
+
+
+cc      print *,npols,npbox,nd
+
+      alpha = 1.0d0
+      beta = 0
+      do ibox=1,nboxes
+        call dgemm('n','t',nd,npols,npbox,alpha,fvals(1,1,ibox),
+     1     nd,umat,npols,beta,fcoefs(1,1,ibox),nd)
+
+c
+c       test fcoefs values at a few random points in the box
+c  
+        xyztmp(1) = centers(1,ibox) + (hkrand(0)-0.5d0)*0.125d0
+        xyztmp(2) = centers(1,ibox) + (hkrand(0)-0.5d0)*0.125d0
+        xyztmp(3) = centers(1,ibox) + (hkrand(0)-0.5d0)*0.125d0
+
+        x = (xyztmp(1) - centers(1,ibox))*1.0d0 
+      enddo
+
+
+      
+
+
+      allocate(pot(npbox,nboxes))
+
+      do i=1,nboxes
+        do j=1,npbox
+          pot(j,i) = 0
+        enddo
+      enddo
+
+      ifsphere0 = 0
+      if(ifsphere) ifsphere0 = 1
+
+
+      call cpu_time(t1) 
+C$      t1 = omp_get_wtime()      
+      call helmholtz_volume_fmm0(eps,zk,nboxes,nlevels,ltree,itree,
+     1   iptr,norder,npols,type,fcoefs,centers,boxsize,npbox,
+     2   pot,ttabgen,timeinfo,tsvd,tnear,ifsphere)
+      call cpu_time(t2) 
+C$      t2 = omp_get_wtime()      
+      call prin2('time taken in fmm=*',t2-t1,1)
+      tfmm = t2-t1
+      tfmm0 = tfmm - ttabgen(nlevels)
+
+      nlfbox = itree(2*nlevels+2)-itree(2*nlevels+1)+1
+
+      print *, npbox,nlfbox
+      call prin2('speed in pps=*',(npbox*nlfbox+0.0d0)/(t2-t1),1)
+ 1000 continue
+
+    
+
+c
+c
+c   write potential to file, error will be compared in matlab/python
+c   since error function of complex argument is requried
+c
+
+ 2623 format(6(2x,e11.5))
+ 2625 format(2(2x,e11.5))
+
+      erra = 0.0d0
+      ra = 0.0d0
+
+      allocate(potex(npbox,nboxes))
+
+      ss = dpars(7)
+      c = exp(-ss**2*zk**2/2.0d0)*ss**3*(2.0d0*pi)**1.5d0
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ibox,j,x,y,z,dx,dy,dz)
+C$OMP$PRIVATE(r,zz,uu,vv,xx,yy,rr1,rr2) REDUCTION(+:erra,ra)
+      do ibox=itree(2*nlevels+1),itree(2*nlevels+2)
+        do j=1,npbox
+          x = centers(1,ibox) + xref(1,j)*boxsize(nlevels)/2.0d0
+          y = centers(2,ibox) + xref(2,j)*boxsize(nlevels)/2.0d0
+          z = centers(3,ibox) + xref(3,j)*boxsize(nlevels)/2.0d0
+
+          dx = x - dpars(1)
+          dy = y - dpars(2)
+          dz = z - dpars(3)
+
+          r = sqrt(dx**2 + dy**2 + dz**2)
+
+          zz = ima*(ss*ima*zk/sqrt(2.0d0)-r/sqrt(2.0d0)/ss)
+          uu = 0
+          vv = 0
+          xx = real(zz)
+          yy = imag(zz)
+          call wofz(xx,yy,uu,vv,flag)
+
+
+          zz = (1.0d0-(uu + ima*vv)*exp(zz**2))*exp(-ima*zk*r)
+          potex(j,ibox) = c/r*(-real(zz)+ima*sin(zk*r))
+
+          rr1 = imag(potex(j,ibox))
+          rr2 = imag(pot(j,ibox))
+
+
+          erra = erra + abs(pot(j,ibox)-potex(j,ibox))**2
+cc          erra = erra + abs(rr1-rr2)**2
+          ra = ra + abs(potex(j,ibox))**2
+        enddo
+      enddo
+
+      erra = sqrt(erra/ra)
+      call prin2('erra=*',erra,1)
+
+      open(unit=33,file='timing-res/time04072020.txt',access='append')
+      open(unit=34,file='timing-res/speed04072020.txt',access='append')
+ 1344 format(2x,e11.5,2(2x,i3),2(2x,i8),7(2x,e11.5)) 
+      n1 = nlfbox*npbox
+      n2 = nboxes*npbox
+
+      
+      write(33,1344) eps,norder,ifsphere0,n1,n2,ttree,tsvd,tnear,
+     1   ttabgen(nlevels),tfmm0,tfmm,erra
+      stree = (n1+0.0d0)/ttree
+      ssvd = (n1+0.0d0)/tsvd
+      snear = (n1+0.0d0)/tnear
+      stabgen = (n1+0.0d0)/ttabgen(nlevels)
+      sfmm0 = (n1+0.0d0)/tfmm0
+      sfmm = (n1+0.0d0)/tfmm
+      write(34,1344) eps,norder,ifsphere0,n1,n2,stree,ssvd,snear,
+     1   stabgen,sfmm0,sfmm,erra
+      close(33)
+      close(34)
+      
+      return
+      end
+c
+c
+c
+c 
+      subroutine fgaussn(nd,xyz,dpars,zpars,ipars,f)
+c
+c       compute three gaussians, their
+c       centers are given in dpars(1:3*nd), and their 
+c       variances in dpars(3*nd+1:4*nd)
+c
+      implicit real *8 (a-h,o-z)
+      integer nd,ipars
+      complex *16 zpars
+      real *8 dpars(*),f(nd),xyz(3)
+
+
+      do i=1,nd
+        idp = (i-1)*3 
+        rr = (xyz(1) - dpars(idp+1))**2 + 
+     1     (xyz(2) - dpars(idp+2))**2 + 
+     1     (xyz(3) - dpars(idp+3))**2
+
+        sigma = (dpars(nd*3+i)**2)*2
+        f(i) = exp(-rr/sigma)
+      enddo
+      f(2) = 0
+      
+      
+
+      return
+      end
+
+c
+c
+c
+c 
+      subroutine fgauss1(nd,xyz,dpars,zpars,ipars,f)
+c
+c       compute a single gaussian, their
+c       centers are given in dpars(1:3), and their 
+c       variances in dpars(4)
+c
+      implicit real *8 (a-h,o-z)
+      integer nd,ipars
+      complex *16 zpars
+      real *8 dpars(4),f,xyz(3)
+
+      rr = (xyz(1) - dpars(1))**2 + 
+     1     (xyz(2) - dpars(2))**2 + 
+     1     (xyz(3) - dpars(3))**2
+
+      sigma = (dpars(4)**2)*2
+      f = exp(-rr/sigma)
+      
+      
+
+      return
+      end
+
+
+      
+
+
+      subroutine h3dtabp_ref0(ndeg,zk,tol,tab,ldtab,ifsphere,tsvd,tnear)
+c
+c     generate the Helmholtz potential table at the reference
+c     points
+c
+c
+c     input
+c
+c     ndeg - integer, highest degree of the basis polynomials
+c                    (measured in total degree, e.g. x^0y^1z^2
+c                     has total degree 3)
+c     zk - complex*16, helmholtz parameter
+c     tol - tolerance for error in table entries
+c     ldtab - integer, leading dimension of the output table
+c     ifsphere - flag for using spherical polynomials for
+c        constructing tables
+c
+c     output
+c      
+c     tab - complex *16 array (ldtab,*), tab(i,j) is the integral
+c     of the j-th tensor polynomial (in the ordering specified
+c     in legetens.f) against the scaled green's function
+c     exp(ikr)/r at the i-th reference target point (see tensrefpts3d)
+      
+c      
+      implicit none
+      integer ndeg, ldtab
+      complex *16 tab(ldtab,*), zk
+      real *8 tol,tsvd,tnear
+c     local
+      integer idims(6), ndeg2, ii, jj, iface, npol2, npol3, ifdiff
+      integer ntarg0, ntarg, n, idim, istart, npt, itype
+      real *8 slicevals(6), flipd(6), flips(6), abszk, abszktol
+      real *8 rcond, val, derscale, tol2, r, theta, phi
+      parameter (abszktol = 2.5d0)
+
+      real *8, allocatable :: x(:,:), w(:), pols(:), v(:,:)
+      real *8 u, pi4,t1,t2,omp_get_wtime
+      integer ldu, ldv
+      
+      complex *16 zero, im, one
+      complex *16, allocatable :: tabtemp(:,:), ahc(:,:), zv(:,:)
+      complex *16, allocatable :: ahderc(:,:), ahcleg(:,:)
+      complex *16, allocatable :: ahdercleg(:,:), ahelm(:), ahelms(:,:)
+      complex *16, allocatable :: ahcleg3(:,:), leg2sph(:,:)
+      complex *16, allocatable :: slp_pots(:,:), dlp_pots(:,:)
+
+      
+      data zero / (0.0d0,0.0d0) /
+      data one / (1.0d0,0.0d0) /      
+      data im / (0.0d0,1.0d0) /
+      data slicevals / -1.0d0, 1.0d0, -1.0d0, 1.0d0, -1.0d0, 1.0d0 /
+      data flipd / -1.0d0, 1.0d0, -1.0d0, 1.0d0, -1.0d0, 1.0d0 /
+      data flips / 1.0d0, 1.0d0, 1.0d0, 1.0d0, 1.0d0, 1.0d0 /
+      data idims / 1, 1, 2, 2, 3, 3 /
+      
+      logical ifsphere
+      character type
+
+      pi4 = 16*atan(1.0d0)
+      
+      n = ndeg+1
+      
+      type = 'T'
+      
+      abszk = abs(zk)
+
+      if(ifsphere) ndeg2 = 20
+      if(.not.ifsphere) ndeg2 = ndeg
+
+      print *, ifsphere, ndeg2
+
+c     memory for coeffs, etc.
+      
+      call legetens_npol_3d(ndeg,type,npol3)
+      call legetens_npol_2d(ndeg2,type,npol2)
+
+      allocate(ahc(npol2,npol3),ahderc(npol2,npol3))
+      allocate(ahcleg3(npol3,npol3),leg2sph(npol3,npol3))
+      allocate(ahcleg(npol2,npol3),ahdercleg(npol2,npol3))
+
+      npt = n**3
+      ldu = 1
+      ldv = npt
+      itype = 4
+      allocate(x(3,npt),w(npt),v(npt,npol3))
+      allocate(zv(npt,npol3))
+      allocate(ahelm(npol3),ahelms(npol3,npt))
+      call legetens_exps_3d(itype,n,type,x,u,ldu,v,ldv,w)
+
+      
+      if (.not. ifsphere) then
+
+         call cpu_time(t1)
+C$         t1 = omp_get_wtime()         
+         tol2 = 1.0d-12
+         call h3danti_legetens_form(ndeg,type,zk,tol2,ahcleg3,
+     1        npol3,rcond)
+         do ii = 1,npol3
+            do jj = 1,npt
+               zv(jj,ii) = -pi4*v(jj,ii)
+            enddo
+         enddo
+         
+         call zgemm('N','N',npt,npol3,npol3,one,zv,npt,
+     1        ahcleg3,npol3,zero,tab,ldtab)
+
+         call cpu_time(t2)
+C$         t2 = omp_get_wtime()        
+         tsvd = t2-t1
+         
+      else
+         call cpu_time(t1)
+C$         t1 = omp_get_wtime()         
+         call legetens_spherepol(n,npol3,leg2sph)
+         
+         do jj = 1,npt
+            call sphcart2polar(x(1,jj),r,theta,phi)
+            call h3danti_sphere(ndeg,zk,r,theta,phi,ahelm)
+            do ii = 1,npol3
+               ahelms(ii,jj) = -pi4*ahelm(ii)
+            enddo
+         enddo
+
+         call zgemm('T','N',npt,npol3,npol3,one,ahelms,npol3,
+     1        leg2sph,npol3,zero,tab,ldtab)
+         call cpu_time(t2)
+C$         t2 = omp_get_wtime()    
+         tsvd = t2-t1
+      endif
+
+c     memory depending on ntarg
+
+      call cpu_time(t1)
+C$      t1 = omp_get_wtime()       
+      ntarg0 = 10*npt
+      ntarg = 6*ntarg0
+      allocate(slp_pots(npol2,ntarg),dlp_pots(npol2,ntarg))
+      allocate(tabtemp(ntarg0,npol3))
+
+      call h3d_facelayerpot_eval(tol,zk,ndeg,ndeg2,type,slp_pots,
+     1  dlp_pots,npol2)
+
+      do ii = 1,npol3
+         do jj = npt+1,ntarg0
+            tab(jj,ii) = zero
+         enddo
+      enddo
+
+      do iface = 1,6
+
+         idim = idims(iface)
+         val = slicevals(iface)
+         derscale = val
+
+c     get poly coeffs of anti-helmholtzian of each polynomial
+c     on face
+         if (ifsphere) then
+            call h3danti_sphere_slicecoeffs(ndeg2,type,ndeg,zk,
+     1           idim,val,derscale,ahc,ahderc,npol2)
+            call zgemm('N','N',npol2,npol3,npol3,one,ahc,npol2,
+     1           leg2sph,npol3,zero,ahcleg,npol2)
+            call zgemm('N','N',npol2,npol3,npol3,one,ahderc,npol2,
+     1           leg2sph,npol3,zero,ahdercleg,npol2)
+            
+         else
+            ifdiff = 1
+            call legetens_slicezcoeffs_3d(ndeg,type,idim,val,
+     1           ahcleg3,npol3,npol3,ahcleg,npol2,ifdiff,ahdercleg,
+     2           npol2)
+            do ii = 1,npol3
+               do jj = 1,npol2
+                  ahdercleg(jj,ii) = derscale*ahdercleg(jj,ii)
+               enddo
+            enddo
+         endif
+         
+
+         istart = (iface-1)*ntarg0 + 1
+         call zgemm('T','N',ntarg0,npol3,npol2,one,
+     1        slp_pots(1,istart),
+     1        npol2,ahdercleg,npol2,zero,tabtemp,ntarg0)
+
+         do ii = 1,npol3
+            do jj = 1,ntarg0
+               tab(jj,ii) = tab(jj,ii) +
+     1              flips(iface)*tabtemp(jj,ii)
+            enddo
+         enddo
+
+         istart = (iface-1)*ntarg0 + 1 
+         call zgemm('T','N',ntarg0,npol3,npol2,one,
+     1        dlp_pots(1,istart),
+     1        npol2,ahcleg,npol2,zero,tabtemp,ntarg0)
+
+         do ii = 1,npol3
+            do jj = 1,ntarg0
+               tab(jj,ii) = tab(jj,ii) +
+     1              flipd(iface)*tabtemp(jj,ii)
+            enddo
+         enddo
+         
+      enddo        
+      call cpu_time(t2)
+C$      t2 = omp_get_wtime()      
+      
+      tnear = t2-t1
+
+      return
+      end
+
+      subroutine helmholtz_volume_fmm0(eps,zk,nboxes,nlevels,ltree,
      1   itree,iptr,norder,ncbox,type,fcoefs,centers,boxsize,npbox,
-     2   pot)
+     2   pot,ttabgen,timeinfo,tsvd,tnear,ifsphere)
 c
 c       This code applies the Helmholtz volume layer potential
 c       to a collection of right hand sides
@@ -136,8 +684,9 @@ c
 
       integer, allocatable :: ijboxlist(:,:)
       double precision timeinfo(8)
-      double precision, allocatable :: ttabgen(:)
+      double precision ttabgen(0:nlevels),tsvd,tnear
       double precision tt1,tt2,tloctot
+      logical ifsphere
 
       integer iref(100),idimp(3,100),iflip(3,100)
 
@@ -146,7 +695,6 @@ c
 
       data ima/(0.0d0,1.0d0)/
 
-      allocate(ttabgen(0:nlevels))
       do i=0,nlevels
         ttabgen(i) = 0
       enddo
@@ -381,7 +929,7 @@ c        possible by storing matrix from children
 c        to parents
 c
 
-      do ilev=nlevels-1,0,-1
+      do ilev=nlevels-1,1,-1
          nquad2 = nterms(ilev)*2.5
          nquad2 = max(6,nquad2)
          ifinit2 = 1
@@ -903,7 +1451,7 @@ c          then compute near field quadrature
 
           call cpu_time(tt1)
 C$          tt1 = omp_get_wtime()          
-          call h3dtabp_ref(ndeg,zk2,eps,tab,ntarg0)
+          call h3dtabp_ref0(ndeg,zk2,eps,tab,ntarg0,ifsphere,tsvd,tnear)
           call splitreftab3d(tab,ntarg0,tabcoll,tabbtos,tabstob,
      1        npbox,ncbox)
           call cpu_time(tt2)
@@ -988,70 +1536,4 @@ c
 c
 c
 c
-
-      subroutine scatter_vals(n,ijlist,pot,npbox,nboxes,vals)
-      implicit real *8 (a-h,o-z)
-
-      integer ijlist(2,n),ncbox,nboxes
-      complex *16 pot(npbox,nboxes),vals(npbox,n)
-
-      do i=1,n
-        ibox = ijlist(2,i)
-        do j=1,npbox
-          pot(j,ibox) = pot(j,ibox) + vals(j,i)
-        enddo
-      enddo
-
-      return
-      end
-c
-c
-c
-c
-c
-
-      subroutine gather_vals(n,ijlist,fcoefs,ncbox,nboxes,rhs)
-      implicit real *8 (a-h,o-z)
-
-      integer ijlist(2,n),ncbox,nboxes
-      complex *16 rhs(ncbox,n),fcoefs(ncbox,nboxes)
-
-      do i=1,n
-        ibox = ijlist(1,i)
-        do j=1,ncbox
-          rhs(j,i) = fcoefs(j,ibox)
-        enddo
-      enddo
-
-      return
-      end
-c
-c
-c
-c
-c
-
-      subroutine gather_mploc_vals(n,ijlist,rmlexp,iaddr,imp,
-     1   ilevel,nboxes,nterms,nmp,mpvals)
-      implicit real *8 (a-h,o-z)
-      integer n,ijlist(2,n),imp,ilevel(nboxes)
-      integer *8 iaddr(2,nboxes)
-      integer nboxes,nterms(*)
-      real *8 rmlexp(*)
-      complex *16 mpvals(nmp,n),ima
-
-      data ima/(0.0d0,1.0d0)/
-
-
-      do i=1,n
-        ibox = ijlist(1,i)
-        istart = iaddr(imp,ibox)
-        do j=1,nmp
-          mpvals(j,i) = rmlexp(istart+2*j-2) + ima*rmlexp(istart+2*j-1)
-        enddo
-
-      enddo
-
-      return
-      end
 

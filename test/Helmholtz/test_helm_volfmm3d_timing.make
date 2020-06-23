@@ -50,7 +50,7 @@ UTILS_DIR = ../../../utils
 
 .PHONY: all clean list
 
-SOURCES =  test_helm_volfmm3d.f \
+SOURCES =  test_helm_volfmm3d_timing.f \
   $(SRC)/Common/prini_new.f \
   $(UTILS_DIR)/legeexps.f \
   $(SRC)/Common/tree_vol.f \

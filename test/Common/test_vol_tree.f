@@ -42,14 +42,14 @@ c
         enddo
       endif
 
-      zk = 11.1d0
+      zk = 1.1d0
       norder = 8
       iptype = 1
       eta = 1
 
       npbox = norder*norder*norder
 
-      eps = 1.0d-10
+      eps = 1.0d-6
       call cpu_time(t1)
 C$      t1 = omp_get_wtime()      
 

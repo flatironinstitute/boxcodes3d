@@ -14,7 +14,7 @@
 c      call prinf('iseed*',iseed,1)
       a = hkrand(iseed)
       
-      tol = 1.0d-9
+      tol = 1.0d-11
       
       ndeg = 7
       n = ndeg + 1
@@ -44,6 +44,14 @@ c     basis polynomial to test
       ix = ix + 1
       iy = iy + 1
       iz = iz + 1
+
+      ix = 2
+      iy = 1
+      iz = 1
+      
+      zk = 4.0d0
+
+      itest = 2160
 
       call prinf('ix is *',ix,1)
       call prinf('iy is *',iy,1)
@@ -147,6 +155,7 @@ c
       call prinf('iz is *',iz,1)
       call prinf('ifail is *',ifail,1)            
       call prin2_long('error is *',err1,1)
+      print *, cv, ccv
 
       return
       end

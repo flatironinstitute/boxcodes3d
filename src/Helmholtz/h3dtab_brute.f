@@ -33,7 +33,7 @@ c
       implicit none
       external fhelm3dp
       integer key, n, nf, ndim, mincls, maxcls, ifail, neval, nw
-      parameter (ndim = 3, nw = 1000000, nf = 2)
+      parameter (ndim = 3, nw = 4000000, nf = 2)
       real *8 a(ndim), b(ndim)
       real *8, allocatable :: wrkstr(:)
       real *8 absest(nf), finest(nf), absreq, relreq
@@ -66,10 +66,10 @@ c$omp threadprivate(/cbh3dtab_brute/)
          b(n) =  1.0d0
    10 continue
       mincls = 0
-      maxcls = 1000000
+      maxcls = 4000000
       key = 0
-      absreq = 1d-11
-      relreq = 1d-11
+      absreq = 1d-12
+      relreq = 1d-12
       ifail = 0
 
       call dcuhre(ndim, nf, a, b, mincls, maxcls, fhelm3dp, 
