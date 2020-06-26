@@ -2,7 +2,7 @@
       implicit real *8 (a-h,o-z)
       real *8, allocatable :: w(:), rs(:)
       real *8, allocatable :: eplot(:),eplot2(:)
-      real *8 clege(1000)
+      real *8 clege(1000), ab(2,3)
       call prini(6,13)
 
       cp = 40.0d0
@@ -22,11 +22,9 @@ c     with
       
       r0 = -0.05d0
       rend = sqrt(0.375d0) + 0.05d0
-      call eatonprol_form(ier,a,b,cp,r0,rend,w,lenw,lused,clege,nlege)
+      call eatonprol_form(ier,a,b,cp,r0,rend,w,lenw,lused,keep)
 
-      call prinf('nlege *',nlege,1)
-      call prin2('clege *',clege,nlege+5)
-
+      
 
       rpa = 0.0d0
       rpb = sqrt(0.375d0)
@@ -43,7 +41,18 @@ c     with
          rs(i) = r
       enddo
 
-      call eatonprol_eval(rs,nplot,clege,nlege,r0,rend,eplot2)
+      ifbell = 1
+      rsupp = 0.5d0
+
+c     belling performed at both ends. rsupp should generally
+c     be set to something between a and the box half-width.
+c     
+
+      call cpu_time(t1)
+      call eatonprol_eval(ifbell,rsupp,rs,nplot,w,eplot2)
+      call cpu_time(t2)
+
+      write(*,*) 'pts per second ', nplot/(t2-t1)
       
       open(unit=33,file='eaton_interp.txt')
 

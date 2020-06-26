@@ -57,6 +57,7 @@ UTILS_DIR = ../../../utils
 
 SOURCES =  test_eaton3d.f eaton.f prolcrea.f proquadr.f \
   orthom.f nrleastsq.f nonsym_eigvals.f corrand.f qrsolve.f \
+  qerrfun.f \
   $(SRC)/Common/prini_new.f \
   $(UTILS_DIR)/legeexps.f \
   $(SRC)/Common/tree_vol.f \

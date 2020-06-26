@@ -62,18 +62,18 @@ c     call prin2('roots *',roots,2*n4)
       
       
 
-      subroutine eatonprol_form(ier,a,b,c,r0,rend,w,lenw,lused,clege,
-     1     nlege)
+      subroutine eatonprol_form(ier,a,b,c,r0,rend,w,lenw,lused,keep)
       implicit real *8 (a-h,o-z)
-      real *8 a,b,c,w(*),r0,r1,clege(*)
+      real *8 a,b,c,w(*),r0,r1,rb
       integer lenw
 c
 c     form the smoothed eaton lens evaluator in the prolate
 c     basis
 c
 c     NOTE: we recommend a small buffer so that
-c     [0,rmax] is contained in [r0,rend] (gets rid of some
-c     gibbsing near endpoints)
+c     [0,rmax] is contained in [r0,rend], with rmax the
+c     largest value where it will be evaluated
+c     (gets rid of some gibbsing near endpoints)
 c      
 c
 c     input
@@ -87,14 +87,13 @@ c     rend - upper bound of fitting region (not necessarily
 c                 upper bound of where it will eventually
 c                 be evaluated)
 c     lenw - length of array w
-c     w - work array storing everything needed to evaluate
-c       prolate approximation of lens in [r0,rend]
 c     lused - number of entries in w that are used
 c
 c     output
 c
-c     clege - legendre expansion of smoothed function
-c     nlege - order of legendre expansion
+c     w - work array storing everything needed to evaluate
+c       prolate approximation of lens in [r0,rend], lege
+c       interpolant, and other info used by eatonprol_eval
 c     ier - if ier = 4 lenw insufficient
 c     
 
@@ -149,7 +148,7 @@ c
       
       w(12) = icoefs + 0.1d0
 
-      if (keep .gt. lenw .or. lused .gt. lenw) then
+      if (lused .gt. lenw) then
          ier = 4
          return
       endif
@@ -182,17 +181,46 @@ c
       call nrleastsq(amat,nsamp,nfun,eps,ncolsout,rnorms,wlst)
       call nrleasts2(wlst,rhs,w(icoefs))
 
-      call protoleg(w(icoefs),nfun,w(iw1),clege,nlege)
+      ilegc = keep
+      w(13) = ilegc + 0.1d0
+
+      keep = ilegc + nhigh
+      
+      call protoleg(w(icoefs),nfun,w(iw1),w(ilegc),nlege)
+
+      w(14) = nlege + 0.1d0
 
       call prinf('eatonprol_form, nlege *',nlege,1)
 
+
+c     find point where it transitions
+
+      nbis = 50
+
+      r1 = r0
+      r2 = a
+
+      do i = 1,nbis
+         rb = (r1+r2)/2
+         call eaton(rb,a,b,val0)
+         if (val0 .ge. b) then
+            r1 = rb
+         else
+            r2 = rb
+         endif
+      enddo
+
+      call prin2('b-val at rb *',b-val0,1)
+
+      w(15) = rb
+      
       
       return
       end
 
-      subroutine eatonprol_eval(rs,nr,clege,nlege,r0,rend,vals)
+      subroutine eatonprol_eval(ifbell,rsupp,rs,nr,w,vals)
       implicit real *8 (a-h,o-z)
-      real *8 rs(*), vals(*), clege(*)
+      real *8 rs(*), vals(*), w(*)
 c
 c     must follow a call to eatonprol_form
 c
@@ -202,11 +230,17 @@ c     points
 c
 c     input:
 c
+c     ifbell - ifbell = 1, then apply a bell that smoothly
+c       transitions from b to the prolate interpolator on
+c       [0,rb] and from the interpolator to 0 on [a,rsupp].
+c       Note, rb is stored in w and is the max r such that 
+c       eaton(r) = b.
+c     rsupp - if ifbell = 1, then this is the true numerical
+c       support of the output. rsupp > a in call to
+c       eatonprol_form (a is in w(1)).
 c     rs - array of r values
 c     nr - number of r values
-c     clege - legendre coefficients
-c     nlege - order of legendre coefs
-c     r0, rend - endpoints used in call to eatonprol_form
+c     w - array output of eatonprol_form. 
 c
 c     output:
 c
@@ -214,32 +248,64 @@ c     vals - array of values of smoothed function at given
 c         points
 c     
 
+      a = w(1)
+      b = w(2)
+      r0 = w(4)
+      rend = w(5)
 
-      do i = 1,nr
-         r = rs(i)
-         t = (r-r0)*2.0d0/(rend-r0)-1.0d0
-         call legeexev(t,vals(i),clege,nlege)
-      enddo
+      ilegc = w(13)
+      nlege = w(14)
+      rb = w(15)
 
-      return
-      end
-
-      subroutine eatonprol_eval0(rs,nr,w1,r0,rend,nvects,coefs,vals)
-      implicit real *8 (a-h,o-z)
-      real *8 rs(*), w1(*), coefs(*), vals(*)
-
-      do i = 1,nr
-         r = rs(i)
-         t = (r-r0)*2.0d0/(rend-r0)-1.0d0
-
-         vals(i) = 0.0d0
-         do j = 0,nvects
-            call proleval(j,t,w1,val,der)
-            vals(i) = vals(i) + val*coefs(j+1)
-         enddo
-      enddo
-
-      return
-      end
-
+      if (ifbell .eq. 1 .and. rsupp .lt. a) then
+         write(*,*) 'bad value of rsupp! turning off bell'
+         ifbell = 1
+      endif
       
+      call eatonprol_eval0(ifbell,rsupp,rb,r0,rend,a,b,rs,nr,
+     1     w(ilegc),nlege,vals)
+         
+      return
+      end
+
+      subroutine eatonprol_eval0(ifbell,rsupp,rb,r0,rend,a,b,rs,nr,
+     1     clege,nlege,vals)
+      implicit real *8 (a-h,o-z)
+      real *8 rs(*), vals(*), clege(*)
+
+      if (ifbell .eq. 1) then
+ 
+         do i = 1,nr
+            r = rs(i)
+            t = (r-r0)*2.0d0/(rend-r0)-1.0d0
+            call legeexev(t,val0,clege,nlege)
+
+            vals(i) = val0
+            
+            if (r .lt. rb) then
+               x = 12.0d0*(r-rb/2.0d0)/rb
+               call qerrfun(x,val1)
+               eta = (1.0d0 + val1)/2.0d0
+               vals(i) = val0*eta + (1.0d0-eta)*b
+            endif
+
+            if (r .gt. a) then
+               x = 12.0d0*(r-(a+rsupp)/2.0d0)/(rsupp-a)
+               call qerrfun(x,val1)
+               eta = (1.0d0 + val1)/2.0d0
+               vals(i) = (1.0d0-eta)*val0
+            endif
+         enddo
+      else
+
+         do i = 1,nr
+            r = rs(i)
+            t = (r-r0)*2.0d0/(rend-r0)-1.0d0
+            call legeexev(t,val0,clege,nlege)
+
+            vals(i) = val0
+         enddo
+      endif
+
+      return
+      end
