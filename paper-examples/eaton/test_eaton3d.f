@@ -2,6 +2,7 @@
       implicit real *8 (a-h,o-z)
       real *8, allocatable :: w(:), rs(:)
       real *8, allocatable :: eplot(:),eplot2(:)
+      real *8 clege(1000)
       call prini(6,13)
 
       cp = 40.0d0
@@ -21,7 +22,10 @@ c     with
       
       r0 = -0.05d0
       rend = sqrt(0.375d0) + 0.05d0
-      call eatonprol_form(ier,a,b,cp,r0,rend,w,lenw,lused,keep)
+      call eatonprol_form(ier,a,b,cp,r0,rend,w,lenw,lused,clege,nlege)
+
+      call prinf('nlege *',nlege,1)
+      call prin2('clege *',clege,nlege+5)
 
 
       rpa = 0.0d0
@@ -39,7 +43,7 @@ c     with
          rs(i) = r
       enddo
 
-      call eatonprol_eval(rs,nplot,w,eplot2)
+      call eatonprol_eval(rs,nplot,clege,nlege,r0,rend,eplot2)
       
       open(unit=33,file='eaton_interp.txt')
 

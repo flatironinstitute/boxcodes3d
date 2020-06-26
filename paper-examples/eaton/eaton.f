@@ -62,9 +62,10 @@ c     call prin2('roots *',roots,2*n4)
       
       
 
-      subroutine eatonprol_form(ier,a,b,c,r0,rend,w,lenw,lused,keep)
+      subroutine eatonprol_form(ier,a,b,c,r0,rend,w,lenw,lused,clege,
+     1     nlege)
       implicit real *8 (a-h,o-z)
-      real *8 a,b,c,w(*),r0,r1
+      real *8 a,b,c,w(*),r0,r1,clege(*)
       integer lenw
 c
 c     form the smoothed eaton lens evaluator in the prolate
@@ -86,15 +87,14 @@ c     rend - upper bound of fitting region (not necessarily
 c                 upper bound of where it will eventually
 c                 be evaluated)
 c     lenw - length of array w
+c     w - work array storing everything needed to evaluate
+c       prolate approximation of lens in [r0,rend]
+c     lused - number of entries in w that are used
 c
 c     output
 c
-c     w - array storing everything needed to evaluate
-c       prolate approximation of lens in [r0,rend]
-c
-c     lused - number of entries in w that are used
-c     keep - number of entries in w that must not be changed
-c         between calls to _form and _eval
+c     clege - legendre expansion of smoothed function
+c     nlege - order of legendre expansion
 c     ier - if ier = 4 lenw insufficient
 c     
 
@@ -133,6 +133,9 @@ c
          return
       endif
 
+      call prinf('eatonprol_form, nvects *',nvects,1)
+      call prinf('eatonprol_form, nhigh *',nhigh,1)
+      
       nfun = nvects + 1
 
       w(10) = nvects + 0.1d0
@@ -179,12 +182,17 @@ c
       call nrleastsq(amat,nsamp,nfun,eps,ncolsout,rnorms,wlst)
       call nrleasts2(wlst,rhs,w(icoefs))
 
+      call protoleg(w(icoefs),nfun,w(iw1),clege,nlege)
+
+      call prinf('eatonprol_form, nlege *',nlege,1)
+
+      
       return
       end
 
-      subroutine eatonprol_eval(rs,nr,w,vals)
+      subroutine eatonprol_eval(rs,nr,clege,nlege,r0,rend,vals)
       implicit real *8 (a-h,o-z)
-      real *8 rs(*), vals(*), w(*)
+      real *8 rs(*), vals(*), clege(*)
 c
 c     must follow a call to eatonprol_form
 c
@@ -196,22 +204,22 @@ c     input:
 c
 c     rs - array of r values
 c     nr - number of r values
-c     w - structure returned by eatonprol_form
+c     clege - legendre coefficients
+c     nlege - order of legendre coefs
+c     r0, rend - endpoints used in call to eatonprol_form
 c
 c     output:
 c
-c     vals - array of values
+c     vals - array of values of smoothed function at given
+c         points
 c     
 
-c     unpack
 
-      r0 = w(4)
-      rend = w(5)
-      iw1 = w(9)
-      nvects = w(10)
-      icoefs = w(12)
-
-      call eatonprol_eval0(rs,nr,w(iw1),r0,rend,nvects,w(icoefs),vals)
+      do i = 1,nr
+         r = rs(i)
+         t = (r-r0)*2.0d0/(rend-r0)-1.0d0
+         call legeexev(t,vals(i),clege,nlege)
+      enddo
 
       return
       end
