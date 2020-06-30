@@ -4,16 +4,16 @@
       integer, allocatable :: itree(:)
       real *8, allocatable :: fvals(:,:,:),centers(:,:),boxsize(:)
       real *8, allocatable :: umat(:,:),vmat(:,:),xref(:,:),wts(:)
-      real *8 xyztmp(3)
+      real *8 xyztmp(3),rintl(0:200)
+      real *8 timeinfo(6),tprecomp(3)
       complex *16 zk,zpars
 
       complex *16, allocatable :: pot(:,:),potex(:,:)
-      complex *16 ima,zz
+      complex *16 ima,zz,ztmp
 
       real *8 alpha,beta
 
       character *1, type
-      real *8, allocatable :: fcoefs(:,:,:)
       data ima/(0.0d0,1.0d0)/
 
       external fgaussn,fgauss1
@@ -37,29 +37,31 @@ c
         dpars(3+i) = dpars(i)
       enddo
 
-      dpars(7) = 1.0d0/13.0d0
-      dpars(8) = 1.0d0/13.0d0
+      rsig = 1.0d0/13.0d0
+cc      rsig = 0.005d0
 
-      dpars(7) = 0.05d0
-      dpars(8) = 0.05d0
+      dpars(7) = rsig 
+      dpars(8) = rsig
 
-      zk = 2.1d0
-      norder = 8
-      iptype = 1
-      eta = 2.0d0
+     
+
+      zk = 2.0d0
+      norder = 4
+      iptype = 0
+      eta = 2
 
 
       zkeff = zk*boxlen
 
       npbox = norder*norder*norder
 
-      eps = 1.0d-6
+      eps = 1.0d-5
       call cpu_time(t1)
 C$      t1 = omp_get_wtime()
 
 
       call vol_tree_mem(eps,zk,boxlen,norder,iptype,eta,
-     1   fgaussn,nd,dpars,zpars,ipars,nlevels,nboxes,ltree)
+     1   fgaussn,nd,dpars,zpars,ipars,nlevels,nboxes,ltree,rintl)
 
       call prinf('nboxes=*',nboxes,1)
       call prinf('nlevels=*',nlevels,1)
@@ -69,7 +71,7 @@ C$      t1 = omp_get_wtime()
       allocate(boxsize(0:nlevels),itree(ltree))
 
       call vol_tree_build(eps,zk,boxlen,norder,iptype,eta,fgaussn,nd,
-     1  dpars,zpars,ipars,nlevels,nboxes,ltree0,itree,iptr,fvals,
+     1  dpars,zpars,ipars,nlevels,nboxes,ltree,rintl,itree,iptr,fvals,
      2  centers,boxsize)
       
       call cpu_time(t2)
@@ -84,6 +86,7 @@ C$      t2 = omp_get_wtime()
       call prin2('speed in points per sec=*',
      1   (nboxes*norder**3+0.0d0)/(t2-t1),1)
 
+      eps = 1.0d-5
 
 
 c
@@ -92,41 +95,6 @@ c       convert values to coefs
 c
       
       npols = norder*(norder+1)*(norder+2)/6
-
-      allocate(xref(3,npbox),umat(npols,npbox),vmat(npbox,npols))
-      allocate(wts(npbox))
-
-      allocate(fcoefs(nd,npols,nboxes))
-
-      type = 'T'
-      itype = 2
-      call legetens_exps_3d(itype,norder,type,xref,umat,npols,vmat,
-     1   npbox,wts)
-      call prinf('norder=*',norder,1)
-      call prinf('npbox=*',npbox,1)
-
-
-
-cc      print *,npols,npbox,nd
-
-      alpha = 1.0d0
-      beta = 0
-      do ibox=1,nboxes
-        call dgemm('n','t',nd,npols,npbox,alpha,fvals(1,1,ibox),
-     1     nd,umat,npols,beta,fcoefs(1,1,ibox),nd)
-
-c
-c       test fcoefs values at a few random points in the box
-c  
-        xyztmp(1) = centers(1,ibox) + (hkrand(0)-0.5d0)*0.125d0
-        xyztmp(2) = centers(1,ibox) + (hkrand(0)-0.5d0)*0.125d0
-        xyztmp(3) = centers(1,ibox) + (hkrand(0)-0.5d0)*0.125d0
-
-        x = (xyztmp(1) - centers(1,ibox))*1.0d0 
-      enddo
-
-
-      
 
 
       allocate(pot(npbox,nboxes))
@@ -137,21 +105,25 @@ c
         enddo
       enddo
 
-
+      type = 'T'
+      
       call cpu_time(t1) 
-C$      t1 = omp_get_wtime()      
+C$     t1 = omp_get_wtime()      
       call helmholtz_volume_fmm(eps,zk,nboxes,nlevels,ltree,itree,
-     1   iptr,norder,npols,type,fcoefs,centers,boxsize,npbox,
-     2   pot)
+     1   iptr,norder,npols,type,fvals,centers,boxsize,npbox,
+     2   pot,timeinfo,tprecomp)
       call cpu_time(t2) 
-C$      t2 = omp_get_wtime()      
+C$     t2 = omp_get_wtime()      
       call prin2('time taken in fmm=*',t2-t1,1)
 
-      nlfbox = itree(2*nlevels+2)-itree(2*nlevels+1)+1
-
-      print *, npbox,nlfbox
+      nlfbox = 0
+      do ilevel=1,nlevels
+        do ibox=itree(2*ilevel+1),itree(2*ilevel+2)
+          if(itree(iptr(4)+ibox-1).eq.0) nlfbox = nlfbox+1
+        enddo
+      enddo
+      call prinf('nlfbox=*',nlfbox,1)
       call prin2('speed in pps=*',(npbox*nlfbox+0.0d0)/(t2-t1),1)
- 1000 continue
 
     
 
@@ -171,45 +143,50 @@ c
 
       ss = dpars(7)
       c = exp(-ss**2*zk**2/2.0d0)*ss**3*(2.0d0*pi)**1.5d0
-
-      do ibox=itree(2*nlevels+1),itree(2*nlevels+2)
-        do j=1,npbox
-          x = centers(1,ibox) + xref(1,j)*boxsize(nlevels)/2.0d0
-          y = centers(2,ibox) + xref(2,j)*boxsize(nlevels)/2.0d0
-          z = centers(3,ibox) + xref(3,j)*boxsize(nlevels)/2.0d0
-
-          dx = x - dpars(1)
-          dy = y - dpars(2)
-          dz = z - dpars(3)
-
-          r = sqrt(dx**2 + dy**2 + dz**2)
-
-          zz = ima*(ss*ima*zk/sqrt(2.0d0)-r/sqrt(2.0d0)/ss)
-          uu = 0
-          vv = 0
-          xx = real(zz)
-          yy = imag(zz)
-          call wofz(xx,yy,uu,vv,flag)
+      print *, "ss=",ss
 
 
-          zz = (1.0d0-(uu + ima*vv)*exp(zz**2))*exp(-ima*zk*r)
-          potex(j,ibox) = c/r*(-real(zz)+ima*sin(zk*r))
+      itype = 0
+      allocate(xref(3,npbox),umat(npols,npbox),vmat(npbox,npols),
+     1    wts(npbox))
+      call legetens_exps_3d(itype,norder,'t',xref,umat,1,vmat,1,wts)
 
-          rr1 = imag(potex(j,ibox))
-          rr2 = imag(pot(j,ibox))
+      do ilevel=1,nlevels
+        do ibox=itree(2*ilevel+1),itree(2*ilevel+2)
+          if(itree(iptr(4)+ibox-1).eq.0) then
+            do j=1,npbox
+              x = centers(1,ibox) + xref(1,j)*boxsize(ilevel)/2.0d0
+              y = centers(2,ibox) + xref(2,j)*boxsize(ilevel)/2.0d0
+              z = centers(3,ibox) + xref(3,j)*boxsize(ilevel)/2.0d0
+
+              dx = x - dpars(1)
+              dy = y - dpars(2)
+              dz = z - dpars(3)
+
+              r = sqrt(dx**2 + dy**2 + dz**2)
+
+              zz = (ss*ima*zk - r/ss)/sqrt(2.0d0)
+              nn = 6*abs(real(zz)*imag(zz))+20
+              call zerrf(zz,ztmp,nn)
+
+              zz = exp(-ima*zk*r)*ztmp
+              potex(j,ibox) = c/r*(-real(zz)+ima*sin(zk*r))
+
+              rr1 = imag(potex(j,ibox))
+              rr2 = imag(pot(j,ibox))
 
 
-          erra = erra + abs(pot(j,ibox)-potex(j,ibox))**2
-cc          erra = erra + abs(rr1-rr2)**2
-          ra = ra + abs(potex(j,ibox))**2
-          write(33,2623) x,y,z,rr1,rr2,rr1/rr2
-          write(34,2625) real(pot(j,ibox)),imag(pot(j,ibox))
-          write(35,2625) real(potex(j,ibox)),imag(potex(j,ibox))
+              erra = erra + abs(pot(j,ibox)-potex(j,ibox))**2
+              ra = ra + abs(potex(j,ibox))**2
+            enddo
+          endif
         enddo
       enddo
 
+
       erra = sqrt(erra/ra)
       call prin2('erra=*',erra,1)
+      call prin2('ra=*',ra,1)
 
       stop
       end

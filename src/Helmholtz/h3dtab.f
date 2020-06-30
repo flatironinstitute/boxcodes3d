@@ -714,13 +714,13 @@ c
         enddo
       enddo
 
-
-      call h3d_get_eps_nqorder(tol,norder,eps,nqorder)
+      nquadmax = 8000
+      nqorder = 20
+      eps = tol
+      call h3d_get_eps_nqorder_nqmax(tol,norder,eps,nqorder,nquadmax,
+     1        nqorderf)
       
       intype = 2
-      nquadmax = 7000
-
-
       call prinf("Starting adap quad for near*",i,0)
 
 
@@ -732,7 +732,7 @@ c
       t1 = second()
 C$       t1 = omp_get_wtime()  
 C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,istart,iend,ntt)
-c$OMP& SCHEDULE(STATIC)      
+c$OMP& SCHEDULE(DYNAMIC)      
       do i=1,nbatches
         istart = (i-1)*nttpcore+1
         iend = min(i*nttpcore,ntarg_n)
@@ -753,9 +753,7 @@ C$       t2 = omp_get_wtime()
       call prin2('time taken in evaluating near=*',t2-t1,1)
 
 
-      call h3d_get_nqorder_far(tol,nqorder)
-      call prinf('nqorder far=*',nqorder,1) 
-      call squarearbq_pts(nqorder,nnodes)
+      call squarearbq_pts(nqorderf,nnodes)
 
       nu = 3
       nqpts = nnodes*nu*nu
@@ -764,7 +762,7 @@ C$       t2 = omp_get_wtime()
       call prinf('ntarg_f=*',ntarg_f,1)
       call prinf('ntarg_n=*',ntarg_n,1)
 
-      call gen_xg_uniftree_nodes(nqorder,nnodes,nu,nqpts,qnodes,qwts)
+      call gen_xg_uniftree_nodes(nqorderf,nnodes,nu,nqpts,qnodes,qwts)
 
       call cquadints_wnodes(norder_p,type,npols,ntarg_f,xyztarg_far,
      1       h3d_slp,dpars,zpars,ipars,nqpts,qnodes,qwts,slp_far)
@@ -799,17 +797,84 @@ c
 c
 c
 c
-      subroutine h3d_get_eps_nqorder(tol,norder,eps,nqorder)
+      subroutine h3d_get_eps_nqorder_nqmax(tol,norder,eps,nqorder,
+     1   nqmax,nqorderf)
       implicit none
       real *8 tol,eps
-      integer norder,nqorder
+      integer norder,nqorder,nqmax,iprec,nqorderf
 c
 c
 c        fix this routine to optimize performance
 c
-      eps = min(tol*1.0d2,1.0d-2)
-      nqorder = 16
-      nqorder = 20
+
+      iprec = 0
+      eps = tol
+      nqorder = 10
+
+      if(tol.lt.0.49d-2) iprec = 1
+      if(tol.lt.0.49d-3) iprec = 2
+      if(tol.lt.0.49d-6) iprec = 3
+      if(tol.lt.0.49d-9) iprec = 4
+
+      print *, "iprec=",iprec
+
+      if(iprec.eq.0) then
+        nqorder = 6
+        eps = 0.9d-2
+        nqmax = 3000
+        nqorderf = 4
+      endif
+
+      if(iprec.eq.1) then
+        nqorder = 7
+        eps = 0.5d-2
+        nqmax = 3000
+        nqorderf = 4
+      endif
+
+      if(iprec.eq.2) then
+c
+c   norder, max(err/max(true,1)), max(err/true),max(err)/max(true)
+c       4, 0.3e-7, 0.2e-5, 0.3e-7 
+c       6, 0.3e-6, 0.3e-3, 0.2e-6
+c       8, 0.5e-6, 0.8e-1, 0.3e-6
+c      12, 0.5e-6, 6.6e3, 0.3e-6 
+c
+         nqmax = 5000
+         nqorderf = 16
+         eps = 0.3d-4
+         if(norder.le.4) then
+           nqorder = 12
+         else if(norder.gt.4.and.norder.le.6) then
+           nqorder = 14
+         else if(norder.gt.6.and.norder.le.8) then
+           nqorder = 14
+           eps = 0.5d-5
+           nqmax = 7000
+         else if(norder.gt.8) then
+           nqorder = 20
+           eps = 0.1d-5
+           nqmax = 20000
+           nqorderf = 20
+         endif
+
+      endif
+
+      if(iprec.eq.3) then
+         nqorder = 25
+         eps = 3.0d-7
+         nqmax = 8000
+         nqorderf = 12
+      endif
+
+      if(iprec.eq.4) then
+        nqorder = 30
+        eps = 3.0d-10
+        nqmax = 10000
+        nqorderf = 15
+      endif
+
+
 
       return
       end

@@ -17,7 +17,7 @@ c      \frac{2}{sqrt{pi}} e^{-x^2} int_0^y e^{u^2} sin 2xu du.
 c
 c---- set order of quadrature
 c
-      eye = dcmplx(0,1)
+      eye = dcmplx(0.0d0,1.0d0)
       pi = 4.0d0*datan(1.0d0)
       allocate(xs(n))
       allocate(ws(n))
@@ -46,7 +46,7 @@ C
 200   continue
 ccc      write(6,*) 'rint1 = ',rint1
 ccc      write(6,*) 'rint2 = ',rint2
-      derfz = er + rint2 + eye*rint1
+      derfz = er + (rint2 + eye*rint1)*fac
 c      i \frac{2}{sqrt{pi}} e^{-x^2} int_0^y e^{u^2} cos 2xu du +
 c      \frac{2}{sqrt{pi}} e^{-x^2} int_0^y e^{u^2} sin 2xu du.
       return
