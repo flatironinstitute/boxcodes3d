@@ -1,17 +1,17 @@
 
-EXEC = vol_tree
+EXEC = int2-fmm
 
-#HOST = osx
-HOST=linux-gfortran
+HOST = osx
+#HOST=linux-gfortran
 #HOST=linux-ifort
 #HOST=linux-gfortran-prof
-HOST=linux-gfortran-openmp
+#HOST=linux-gfortran-openmp
 
 ifeq ($(HOST),osx)
 FC = gfortran
-FFLAGS = -O3 -march=native -funroll-loops -c -w
-FLINK = gfortran -w -o $(EXEC)
-FEND = -framework accelerate
+FFLAGS = -O3 -march=native --openmp -funroll-loops -c -w
+FLINK = gfortran -w --openmp -o $(EXEC)
+FEND = -lopenblas ${LDFLAGS}
 endif
 
 ifeq ($(HOST),linux-gfortran)
@@ -50,7 +50,7 @@ UTILS_DIR = ../../../utils
 
 .PHONY: all clean list
 
-SOURCES =  test_helm_volfmm3d_timing.f \
+SOURCES =  test_ls_solver.f \
   $(SRC)/Common/prini_new.f \
   $(UTILS_DIR)/legeexps.f \
   $(SRC)/Common/tree_vol.f \
@@ -60,6 +60,7 @@ SOURCES =  test_helm_volfmm3d_timing.f \
   $(SRC)/Helmholtz/h3dtab.f \
   $(SRC)/Helmholtz/lommel.f \
   $(SRC)/Helmholtz/helm_volfmm3d.f \
+  $(SRC)/Helmholtz/ls_solver.f \
   $(SRC)/Common/sphere_pol_routs.f \
   $(SRC)/Common/ncleastsq.f \
   $(SRC)/Common/svdpivot.f \
@@ -69,6 +70,8 @@ SOURCES =  test_helm_volfmm3d_timing.f \
   $(SRC)/Common/quadintrouts.f \
   $(SRC)/Common/loadsyms3d.f \
   $(SRC)/Common/squarearbq.f \
+  $(SRC)/Common/zerrf.f \
+  $(SRC)/Common/rotmat_gmres.f \
   $(FMM3D)/Helmholtz/hpwrouts.f \
   $(FMM3D)/Helmholtz/h3dtrans.f \
   $(FMM3D)/Helmholtz/h3dterms.f \

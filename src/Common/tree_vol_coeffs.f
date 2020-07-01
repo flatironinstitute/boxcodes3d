@@ -124,11 +124,11 @@ c
       integer nbmax,nlmax,npbox,npc
       real *8, allocatable :: grid(:,:),ximat(:,:),qwts(:)
       real *8 xq(norder),wts(norder),umat,vmat,xyz(3)
-      real *8, allocatable :: wts3(:),xref3(:,:)
+      real *8, allocatable :: wts3(:),xref3(:,:),umat3(:,:)
       real *8 rintl(0:200)
       real *8 rint
       real *8, allocatable :: rintbs(:),rintbs2(:)
-      integer i,itype,j
+      integer i,itype,j,npols
 
       real *8, allocatable :: fval1(:,:,:,:),centerstmp(:,:,:)
       real *8, allocatable :: boxsize(:)
@@ -183,10 +183,13 @@ c
       enddo
 
       call mesh3d(xq,norder,xq,norder,xq,norder,grid)
+
+      npols = norder*(norder+1)*(norder+2)/6
       
-      allocate(wts3(npbox),xref3(3,npbox))
-      itype = 1
-      call legetens_exps_3d(itype,norder,'t',xref3,umat,1,vmat,1,wts3)
+      allocate(wts3(npbox),xref3(3,npbox),umat3(npols,npbox))
+      itype = 3
+      call legetens_exps_3d(itype,norder,'t',xref3,umat3,npols,
+     1   vmat,1,wts3)
 
 
 c
@@ -266,10 +269,10 @@ c
 
         print *, ilev, rint,rsc
 
-        call vol_tree_find_box_refine(fun,nd,dpars,zpars,ipars,
-     1       iptype,eta,eps,zk,norder,npbox,fvals,npc,ximat,grid,qwts,
-     2       centers,boxsize(ilev),nbmax,ifirstbox,nbloc,
-     3       centerstmp,fval1,rsc,irefinebox,irefine)
+        call vol_tree_find_box_refine(nd,iptype,eta,eps,zk,norder,npbox,
+     1       fvals,npols,umat3,boxsize(ilev),nbmax,ifirstbox,
+     2       nbloc,rsc,irefinebox,irefine)
+     
 
 c
 c
@@ -290,8 +293,7 @@ c
           print *, "Reallocating"
           allocate(centers2(3,nbmax),ilevel2(nbmax),iparent2(nbmax))
           allocate(nchild2(nbmax),ichild2(8,nbmax))
-          allocate(fvals2(nd,npbox,nbmax))
-          allocate(rintbs2(nbmax))
+          allocate(fvals2(nd,npbox,nbmax),rintbs2(nbmax))
 
           call tree_copy(nd,nbctr,npbox,centers,ilevel,iparent,nchild,
      1            ichild,fvals,centers2,ilevel2,iparent2,nchild2,
@@ -320,8 +322,8 @@ c
           laddr(1,ilev+1) = nbctr+1
 
           call vol_tree_refine_boxes(irefinebox,nd,npbox,fvals,
-     1      fval1,nbmax,ifirstbox,nbloc,centers,centerstmp,
-     2      nbctr,ilev+1,ilevel,iparent,nchild,ichild)
+     1      fun,dpars,zpars,ipars,grid,nbmax,ifirstbox,nbloc,centers,
+     2      boxsize(ilev+1),nbctr,ilev+1,ilevel,iparent,nchild,ichild)
 
 
           rsc = boxsize(ilev+1)**3/8
@@ -346,7 +348,7 @@ c
 
         nbtot = 16*nboxes
         if(nbtot.gt.nbmax) then
-          print *, "Reallocating 2"
+          print *, "Reallocating"
           allocate(centers2(3,nbmax),ilevel2(nbmax),iparent2(nbmax))
           allocate(nchild2(nbmax),ichild2(8,nbmax))
           allocate(fvals2(nd,npbox,nbmax),rintbs2(nbmax))
@@ -490,9 +492,10 @@ c
       integer i,ilev,irefine,itype,nbmax,nlmax,npbox,npc,ii
       integer ifirstbox,ilastbox,nbctr,nbloc
       real *8 rsc
+      real *8, allocatable :: wts3(:),xref3(:,:),umat3(:,:)
 
       real *8 ra
-      integer j,nboxes0
+      integer j,nboxes0,npols
 
       external fun
 c
@@ -539,6 +542,13 @@ c
       enddo
 
       call mesh3d(xq,norder,xq,norder,xq,norder,grid)
+      npols = norder*(norder+1)*(norder+2)/6
+
+      allocate(wts3(npbox),xref3(3,npbox),umat3(npols,npbox))
+      itype = 3
+      call legetens_exps_3d(itype,norder,'t',xref3,umat3,npols,vmat,
+     1  1,wts3)
+
 
 
 
@@ -581,10 +591,9 @@ c
         if(iptype.eq.1) rsc = (1.0d0/boxsize(0)**3)
         if(iptype.eq.0) rsc = 1.0d0
         rsc = rsc*rintl(ilev)
-        call vol_tree_find_box_refine(fun,nd,dpars,zpars,ipars,
-     1       iptype,eta,eps,zk,norder,npbox,fvals,npc,ximat,grid,qwts,
-     2       centers,boxsize(ilev),nboxes,ifirstbox,nbloc,
-     3       centerstmp,fval1,rsc,irefinebox,irefine)
+        call vol_tree_find_box_refine(nd,iptype,eta,eps,zk,norder,npbox,
+     1       fvals,npols,umat3,boxsize(ilev),nboxes,ifirstbox,
+     2       nbloc,rsc,irefinebox,irefine)
         
 
         if(irefine.eq.1) then
@@ -592,9 +601,9 @@ c
           itree(2*ilev+3) = nbctr+1
 
           call vol_tree_refine_boxes(irefinebox,nd,npbox,fvals,
-     1      fval1,nboxes,ifirstbox,nbloc,centers,centerstmp,
-     2      nbctr,ilev+1,itree(iptr(2)),itree(iptr(3)),itree(iptr(4)),
-     3      itree(iptr(5)))
+     1      fun,dpars,zpars,ipars,grid,nboxes,ifirstbox,nbloc,centers,
+     2      boxsize(ilev+1),nbctr,ilev+1,itree(iptr(2)),itree(iptr(3)),
+     3      itree(iptr(4)),itree(iptr(5)))
           
           itree(2*ilev+4) = nbctr
         else
@@ -636,28 +645,25 @@ c
 c      
 c
 c
-      subroutine vol_tree_find_box_refine(fun,nd,dpars,zpars,
-     1   ipars,iptype,eta,
-     1   eps,zk,norder,npbox,fvals,npc,ximat,grid,qwts,centers,
-     2   boxsize,nboxes,ifirstbox,nbloc,centerstmp,fval1,rsc,irefinebox,
-     3   irefine)
+      subroutine vol_tree_find_box_refine(nd,iptype,eta,eps,zk,norder,
+     1  npbox,fvals,npols,umat,
+     2  boxsize,nboxes,ifirstbox,nbloc,rsc,irefinebox,irefine)
       implicit none
-      integer nd,ipars(*),npc,npbox,norder,iptype
+      integer nd,npc,npbox,norder,iptype,npols
       integer nboxes,nbloc
-      real *8 dpars(*),eta,eps,fvals(nd,npbox,nboxes)
-      real *8 ximat(npc,npbox)
-      real *8 fval1(nd,npbox,8,nbloc),centerstmp(3,8,nbloc)
-      real *8 centers(3,nboxes),rsc
-      real *8 xyz(3),grid(3,npbox),qwts(npbox)
-      real *8, allocatable :: fval0(:,:,:,:)
-      real *8 alpha,beta,boxsize,rscerr
+      real *8 eta,eps,fvals(nd,npbox,nboxes)
+      real *8 umat(npols,npbox)
+      real *8 rsc
+      real *8, allocatable :: fcoefs(:,:,:),rmask(:)
+      integer, allocatable :: iind2p(:,:)
+      real *8 alpha,beta,boxsize,rsum
       integer irefinebox(nbloc),xind(8),yind(8),zind(8)
-      complex *16 zk,zpars(*)
-      integer ifirstbox,ifunif
+      complex *16 zk
+      integer ifirstbox
 
       integer irefine
 
-      integer i,j,k,l,ibox
+      integer i,j,k,l,ibox,ifunif,i1
       real *8 rscale2,err,bs,bs2
       data xind/-1,1,-1,1,-1,1,-1,1/ 
       data yind/-1,-1,1,1,-1,-1,1,1/ 
@@ -668,12 +674,33 @@ c
       external fun
 
       ifunif = 0
-      allocate(fval0(nd,npbox,8,nbloc))
-
-
 
       transa = 'n'
       transb = 't'
+
+
+      allocate(fcoefs(nd,npols,nbloc))
+      allocate(iind2p(3,npols))
+      call legetens_ind2pow_3d(norder-1,'t',iind2p)
+
+      
+      allocate(rmask(npols))
+
+      rsum = 0
+      do i=1,npols
+        rmask(i) = 0.0d0
+        i1=iind2p(1,i)+iind2p(2,i)+iind2p(3,i)
+        if(i1.eq.norder-1) then
+          rmask(i) = 1.0d0
+          rsum = rsum + 1
+        endif
+      enddo
+
+      if(iptype.eq.2) rsum = sqrt(rsum)
+      if(iptype.eq.0) rsum = 1
+      
+
+
 
       alpha = 1
       beta = 0
@@ -681,7 +708,6 @@ c
       bs = boxsize/4.0d0
       bs2 = 2*bs
       rscale2 = bs2**eta
-
 
       if(real(zk)*boxsize.gt.5) then
         do i=1,nbloc
@@ -691,60 +717,42 @@ c
       endif
 
 
-
-C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,ibox,xyz,err)
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,ibox,err)
       do i=1,nbloc
         irefinebox(i) = 0
 
         ibox = ifirstbox + i-1
 
-        call dgemm(transa,transb,nd,npc,npbox,alpha,fvals(1,1,ibox),nd,
-     1    ximat,npc,beta,fval0(1,1,1,i),nd)
+        call dgemm(transa,transb,nd,npols,npbox,alpha,fvals(1,1,ibox),
+     1    nd,umat,npols,beta,fcoefs(1,1,i),nd)
 
-c
-c
-c      compute actual function values on the children grid
-c
-        do j=1,8
-          centerstmp(1,j,i) = centers(1,ibox)+xind(j)*bs
-          centerstmp(2,j,i) = centers(2,ibox)+yind(j)*bs
-          centerstmp(3,j,i) = centers(3,ibox)+zind(j)*bs
-
-          do l=1,npbox
-            xyz(1) = centerstmp(1,j,i) + grid(1,l)*bs2
-            xyz(2) = centerstmp(2,j,i) + grid(2,l)*bs2
-            xyz(3) = centerstmp(3,j,i) + grid(3,l)*bs2
-            call fun(nd,xyz,dpars,zpars,ipars,fval1(1,l,j,i))
-          enddo
-        enddo
-
-        call fun_err(nd,npc,fval0(1,1,1,i),fval1(1,1,1,i),qwts,
+        call fun_err(nd,npols,fcoefs(1,1,i),rmask,
      1     iptype,rscale2,err)
+     
+        err = err/rsum
 
         
-        if(err.gt.eps*rsc.or.real(zk)*boxsize.gt.5) then
+        if(err.gt.eps*rsc) then
           irefinebox(i) = 1
         endif
       enddo
 C$OMP END PARALLEL DO     
 
  1000 continue
-      
       irefine = maxval(irefinebox(1:nbloc))
 
-      if(ifunif.eq.1) then
 
 c
 c       make tree uniform
 c
 
+      if(ifunif.eq.1) then
 C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
         do i=1,nbloc
           irefinebox(i) = irefine
         enddo
 C$OMP END PARALLEL DO      
       endif
-
 
       return
       end
@@ -756,13 +764,17 @@ c
 
 
       subroutine vol_tree_refine_boxes(irefinebox,nd,npbox,fvals,
-     1  fval1,nboxes,ifirstbox,nbloc,centers,centerstmp,nbctr,nlctr,
-     2  ilevel,iparent,nchild,ichild)
+     1  fun,dpars,zpars,ipars,grid,nboxes,ifirstbox,nbloc,centers,
+     2  bs,nbctr,nlctr,ilevel,iparent,nchild,ichild)
       implicit none
       integer nd,npbox
-      real *8 fvals(nd,npbox,nboxes),fval1(nd,npbox,8,nbloc)
+      integer ipars(*)
+      real *8 dpars(*)
+      complex *16 zpars(*)
+      real *8 fvals(nd,npbox,nboxes)
       integer nboxes,nbloc,nbctr,nlctr
-      real *8 centers(3,nboxes),centerstmp(3,8,nbloc)
+      real *8 grid(3,npbox),bs,xyz(3)
+      real *8 centers(3,nboxes)
       integer ilevel(nboxes),iparent(nboxes)
       integer ichild(8,nboxes),nchild(nboxes)
       integer irefinebox(nbloc)
@@ -770,24 +782,40 @@ c
       integer, allocatable :: isum(:)
 
       integer i,ibox,nel0,j,l,jbox,nel1,nbl
+      integer xind(8),yind(8),zind(8)
 
-      nel0 = 24
-      nel1 = 8*nd*npbox
+      real *8 bsh
+      data xind/-1,1,-1,1,-1,1,-1,1/ 
+      data yind/-1,-1,1,1,-1,-1,1,1/ 
+      data zind/-1,-1,-1,-1,1,1,1,1/
+
+
+      external fun
 
       allocate(isum(nbloc))
       call cumsum(nbloc,irefinebox,isum)
+
+      bsh = bs/2
+
       
-C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,ibox,nbl,j,jbox)
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,ibox,nbl,j,jbox,l,xyz)
       do i = 1,nbloc
         ibox = ifirstbox + i-1
         if(irefinebox(i).eq.1) then
           nbl = nbctr + (isum(i)-1)*8
-          call dcopy(nel0,centerstmp(1,1,i),1,centers(1,nbl+1),1)
-          
-          call dcopy(nel1,fval1(1,1,1,i),1,fvals(1,1,nbl+1),1)
           nchild(ibox) = 8
           do j=1,8
             jbox = nbl+j
+            centers(1,jbox) = centers(1,ibox)+xind(j)*bsh
+            centers(2,jbox) = centers(2,ibox)+yind(j)*bsh
+            centers(3,jbox) = centers(3,ibox)+zind(j)*bsh
+
+            do l=1,npbox
+              xyz(1) = centers(1,jbox) + grid(1,l)*bs
+              xyz(2) = centers(2,jbox) + grid(2,l)*bs
+              xyz(3) = centers(3,jbox) + grid(3,l)*bs
+              call fun(nd,xyz,dpars,zpars,ipars,fvals(1,l,jbox))
+            enddo
             iparent(jbox) = ibox
             nchild(jbox) = 0
             do l=1,8
@@ -810,22 +838,19 @@ c
 c
 c
 c
-      subroutine fun_err(nd,n,fval0,fval1,qwts,iptype,rscale,err)
-c       this subroutine computes the error between two sets
-c       of function values fval0 and fval1 in either l1,l2,or linf 
-c       sense and scales the error by a factor rscale
+      subroutine fun_err(nd,n,fcoefs,rmask,iptype,rscale,err)
+c       this subroutine estimates the error based on the expansion
+c       coefficients in a given basis
 c       
 c       input
 c        nd - integer
 c          number of functions
 c        n -  integer
 c           number of points at which function is tabulated
-c        fval0: double complex(n)  
-c           function values of function 1
-c        fval1: double complex(n)
-c           function values of function 2
-c        qwts: double precision(n) 
-c           quadrature weights 
+c        fcoefs: double precision(nd,n) 
+c          tensor product legendre coeffs of func
+c        rmask: double precision(n)
+c           coefficients which will be accounted for in the error
 c        iptype: integer
 c           type of error to be computed
 c           iptype = 0 - linf error
@@ -840,46 +865,48 @@ c           max scaled error in the functions
 c
         implicit none
         integer n,i,iptype,idim,nd
-        real *8 qwts(n),rscale,err
-        real *8 fval0(nd,n), fval1(nd,n)
-        real *8, allocatable :: errtmp(:)
+        real *8 rscale,err
+        real *8 fcoefs(nd,n),rmask(n)
+        real *8, allocatable :: errtmp(:),ftmp(:,:)
+        real *8 alpha, beta
 
-        allocate(errtmp(nd))
+        allocate(errtmp(nd),ftmp(nd,n))
 
-c
-c    note extra division by 8 in qwts since qwts defined on 
-c     [-1,1]^3
-c
-        
+        alpha = 1.0d0
+        beta = 0.0d0
+   
         err = 0
         do idim=1,nd
           errtmp(idim) = 0
         enddo
         if(iptype.eq.0) then
           do i=1,n
-            do idim = 1,nd
-              if(errtmp(idim).lt.abs(fval0(idim,i)-fval1(idim,i))) 
-     1           errtmp(idim)=abs(fval0(idim,i)-fval1(idim,i))
-            enddo
+            if(rmask(i).gt.0.5d0) then
+              do idim = 1,nd
+                if(errtmp(idim).lt.abs(fcoefs(idim,i))) 
+     1             errtmp(idim)=abs(fcoefs(idim,i))
+              enddo
+            endif
           enddo
         endif
 
         if(iptype.eq.1) then
           do i=1,n 
             do idim=1,nd
-              errtmp(idim) = errtmp(idim) + abs(fval0(idim,i)-
-     1            fval1(idim,i))*qwts(i)/8
+              ftmp(idim,i) = abs(fcoefs(idim,i))
             enddo
           enddo
+          call dgemv('n',nd,n,alpha,ftmp,nd,rmask,1,beta,errtmp,1)
         endif
+
 
         if(iptype.eq.2) then
           do i=1,n 
             do idim=1,nd
-              errtmp(idim) = errtmp(idim) + abs(fval0(idim,i)-
-     1            fval1(idim,i))**2*qwts(i)/8
+              ftmp(idim,i) = fcoefs(idim,i)**2
             enddo
           enddo
+          call dgemv('n',nd,n,alpha,ftmp,nd,rmask,1,beta,errtmp,1)
 
           do idim=1,nd
             errtmp(idim) = sqrt(errtmp(idim))
@@ -890,7 +917,6 @@ c
         do idim=1,nd
           if(errtmp(idim).gt.err) err = errtmp(idim)
         enddo
-
 
         err = err*rscale
 
@@ -1113,82 +1139,6 @@ c
 
       return
       end
-c
-c
-c
-c
-c
-c
-c
-      subroutine get_children_fcoef_interp_mat(norder,ncbox,ncc,fimat)
-c
-c
-c       construct interpolation matrix from coefs on parent box to
-c       coefs on 8 children boxes
-c
-c        input
-c        norder: integer
-c           order of discretization
-c        ncbox: integer
-c           number of coefs per box = norder*(norder+1)(norder+2)/6
-c        ncc: integer
-c           number of coefs in chilren boxe = 8*ncbox
-c
-c        output
-c          fimat - double precision(ncbox,ncc)
-c             interpolation matrix
-c
-c
-      implicit real *8 (a-h,o-z)
-      integer norder,ncbox,ncc,npbox,npc
-      real *8 fimat(ncbox,ncc),cref(3,8),xyz(3)
-      real *8, allocatable :: umat(:,:),vmat(:,:),pmat(:,:)
-      real *8, allocatable :: xref(:,:),wts(:)
-      character *1 type,transa,transb
-
-      npbox = norder**3
-      npc = 8*npbox
-
-      allocate(xref(3,npbox),umat(ncbox,npbox))
-      allocate(pmat(ncbox,npc),wts(npbox))
-
-      type = 'T'
-      itype = 3
-      call legetens_exps_3d(itype,norder,type,xref,umat,ncbox,vmat,
-     1   npbox,wts)
-
-      transa = 'n'
-      transb = 't'
-
-      alpha = 1
-      beta = 0
-
-      do ic=1,8
-        ii = 2
-        jj = 2
-        if(ic.eq.1.or.ic.eq.2.or.ic.eq.5.or.ic.eq.6) ii=1
-        if(ic.lt.5) jj = 1
-        cref(1,ic) = (-1)**ic*0.5d0
-        cref(2,ic) = (-1)**ii*0.5d0
-        cref(3,ic) = (-1)**jj*0.5d0
-        do j=1,npbox
-          ipt = (ic-1)*npbox+j
-          do l=1,3
-            xyz(l) = cref(l,ic) + xref(l,j)*0.5d0
-          enddo
-          call legetens_pols_3d(xyz,norder-1,type,pmat(1,ipt))
-        enddo
-        call dgemm(transa,transb,ncbox,ncbox,npbox,alpha,
-     1       pmat(1,(ic-1)*npbox+1),ncbox,
-     2       umat,ncbox,beta,fimat(1,(ic-1)*ncbox+1),
-     3       ncbox)
-      enddo
-
-      return
-      end
-
-c
-c
 c
 c
 c
@@ -1818,7 +1768,7 @@ c     Rearrange old arrays now
             centers(3,curbox) = tcenters(3,ibox)
             do i=1,npbox
               do idim=1,nd
-                fvals(idim,i,curbox) = tfvals(idim,i,ibox)
+                fvals(idim,i,ibox) = tfvals(idim,i,ibox)
               enddo
             enddo
             iflag(curbox) = tiflag(ibox)
@@ -1834,7 +1784,7 @@ c     Rearrange old arrays now
             nchild(curbox) = tnchild(ibox)
             do i=1,npbox
               do idim=1,nd
-                fvals(idim,i,curbox) = tfvals(idim,i,ibox)
+                fvals(idim,i,ibox) = tfvals(idim,i,ibox)
               enddo
             enddo
             iflag(curbox) = tiflag(ibox)

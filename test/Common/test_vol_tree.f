@@ -3,6 +3,7 @@
       integer iptr(9)
       integer, allocatable :: itree(:)
       real *8, allocatable :: fvals(:,:,:),centers(:,:),boxsize(:)
+      real *8 rintl(0:200)
       complex *16 zk,zpars
 
       external fgauss3,fgauss1
@@ -12,67 +13,75 @@
 c
 c      initialize function parameters
 c
-      boxlen = 3.1d0
+      boxlen = 1.0d0
+      zk = 2.0d0
 
-      icase = 1
+      nd = 1
+      do i=1,3
+        dpars(i) = (hkrand(0)-0.5d0)*boxlen*0.01
+      enddo
+ 1100 format(2x,e11.5,3(2x,i1),2(2x,i6),2x,i9,6(2x,e11.5))              
 
-      if(icase.eq.1) then
-        nd = 1
-        do i=1,3
-          dpars(i) = (hkrand(0)-0.5d0)*boxlen
-        enddo
-        dpars(4) = 0.5d0*(0.5d0+hkrand(0))
-        dpars(4) = 0.75d0
-      endif
+      dpars(4) = 0.05d0/4
+      dpars(4) = 0.75d0
+      call prin2('dpars=*',dpars,4)
 
-      if(icase.eq.3)  then
-        nd = 3 
-c
-c       set centers of gaussians
-c
-        do i=1,9
-          dpars(i) = (hkrand(0)-0.5d0)*boxlen
-        enddo
-
-c
-c       set variances
-c
-        do i=1,3
-          dpars(9+i) = 5.0d0*(0.5d0 + hkrand(0))
-        enddo
-      endif
-
-      zk = 1.1d0
-      norder = 8
-      iptype = 1
-      eta = 1
-
+      norder = 8 
+      iptype = 0 
       npbox = norder*norder*norder
+      iprec = 1
+              
+      print *, ""
+      print *, ""
+      print *, "========================="
 
-      eps = 1.0d-6
+      print *, norder,iptype,iprec
+
+      eta = 0.0d0
+
+      eps = 10.0d0**(-iprec*3)
       call cpu_time(t1)
-C$      t1 = omp_get_wtime()      
+C$    t1 = omp_get_wtime()      
 
       call vol_tree_mem(eps,zk,boxlen,norder,iptype,eta,
-     1   fgauss1,nd,dpars,zpars,ipars,nlevels,nboxes,ltree)
+     1      fgauss1,nd,dpars,zpars,ipars,nlevels,nboxes,ltree,rintl)
+
+      call cpu_time(t2)
+C$    t2 = omp_get_wtime()     
+      
+      tmem = t2-t1
+      call prin2('time taken in memory routine=*',t2-t1,1)
+
+
 
       call prinf('nboxes=*',nboxes,1)
       call prinf('nlevels=*',nlevels,1)
+      call prin2('rintl=*',rintl,nlevels+1)
 
-
+      stop
       allocate(fvals(nd,npbox,nboxes),centers(3,nboxes))
       allocate(boxsize(0:nlevels),itree(ltree))
 
-      call vol_tree_build(eps,zk,boxlen,norder,iptype,eta,fgauss1,nd,
-     1  dpars,zpars,ipars,nlevels,nboxes,ltree0,itree,iptr,fvals,
-     2  centers,boxsize)
+      call cpu_time(t1)
+C$    t1 = omp_get_wtime()
+      
+      call vol_tree_build(eps,zk,boxlen,norder,iptype,eta,
+     1         fgauss1,nd,dpars,zpars,ipars,nlevels,nboxes,ltree0,
+     2         rintl,itree,iptr,fvals,centers,boxsize)
       call cpu_time(t2)
-C$      t2 = omp_get_wtime()      
+C$    t2 = omp_get_wtime()      
+              
+      tgen  =t2-t1
+      ttot = tgen+tmem
       call prin2('time taken to build tree=*',t2-t1,1)
       call prin2('speed in points per sec=*',
-     1   (nboxes*norder**3+0.0d0)/(t2-t1),1)
-      
-      
+     1        (nboxes*norder**3+0.0d0)/(t2-t1+tmem),1)
+      n = nboxes*npbox
+      smem = (n+0.0d0)/tmem
+      sgen = (n+0.0d0)/tgen
+      stot = (n+0.0d0)/ttot
+      write(*,1100) dpars(4),norder,iptype,iprec,nboxes,npbox,
+     1         n,tmem,tgen,ttot,smem,sgen,stot
 
       
 

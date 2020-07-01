@@ -72,8 +72,8 @@
 !
       XABS = DABS(XI)
       YABS = DABS(YI)
-      X    = XABS/6.3
-      Y    = YABS/4.4
+      X    = XABS/6.3d0
+      Y    = YABS/4.4d0
 !
 !
 !     THE FOLLOWING IF-STATEMENT PROTECTS
@@ -96,7 +96,7 @@
 !  N IS THE MINIMUM NUMBER OF TERMS NEEDED TO OBTAIN THE REQUIRED
 !  ACCURACY
 !
-        QRHO  = (1-0.85*Y)*DSQRT(QRHO)
+        QRHO  = (1.0d0-0.85d0*Y)*DSQRT(QRHO)
         N     = IDNINT(6 + 72*QRHO)
         J     = 2*N+1
         XSUM  = 1.0/J
@@ -105,7 +105,7 @@
           J    = J - 2
           XAUX = (XSUM*XQUAD - YSUM*YQUAD)/I
           YSUM = (XSUM*YQUAD + YSUM*XQUAD)/I
-          XSUM = XAUX + 1.0/J
+          XSUM = XAUX + 1.0d0/J
  10     CONTINUE
         U1   = -FACTOR*(XSUM*YABS + YSUM*XABS) + 1.0
         V1   =  FACTOR*(XSUM*XABS - YSUM*YABS)
@@ -138,8 +138,8 @@
           QRHO = DSQRT(QRHO)
           NU   = IDINT(3 + (1442/(26*QRHO+77)))
         ELSE
-          QRHO = (1-Y)*DSQRT(1-QRHO)
-          H    = 1.88*QRHO
+          QRHO = (1.0d0-Y)*DSQRT(1-QRHO)
+          H    = 1.88d0*QRHO
           H2   = 2*H
           KAPN = IDNINT(7  + 34*QRHO)
           NU   = IDNINT(16 + 26*QRHO)
@@ -158,7 +158,7 @@
           NP1 = N + 1
           TX  = YABS + H + NP1*RX
           TY  = XABS - NP1*RY
-          C   = 0.5/(TX**2 + TY**2)
+          C   = 0.5d0/(TX**2 + TY**2)
           RX  = C*TX
           RY  = C*TY
           IF ((B).AND.(N.LE.KAPN)) THEN
@@ -177,7 +177,7 @@
           V = FACTOR*SY
         END IF
 !
-        IF (YABS.EQ.0.0) U = DEXP(-XABS**2)
+        IF (YABS.EQ.0.0d0) U = DEXP(-XABS**2)
 !
       END IF
 !

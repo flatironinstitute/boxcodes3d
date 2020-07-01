@@ -526,7 +526,7 @@ c
 
             if(nquad+4.gt.nqmax) then
                print *, "Too many quads in cquadadap"
-               print *, "Exiting without computing anything"
+               print *, "Exiting before convergence"
 
                return
             endif
