@@ -4,7 +4,7 @@ EXEC = int2h3danti_legeup
 #HOST = osx
 HOST=linux-gfortran
 HOST=linux-gfortran-openmp
-HOST=linux-gfortran-debug
+#HOST=linux-gfortran-debug
 
 ifeq ($(HOST),osx)
 FC = gfortran

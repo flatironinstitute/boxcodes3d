@@ -561,3 +561,284 @@ c
       
 
       
+      subroutine h3danti_legeupfast(ndeg,nup,type,zk,ahmat,ldahmat)
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     Apply the downward recurrence formula to obtain the
+c     anti-Helmholtzian on Legendre polynomials
+c
+c     input:
+c
+c     ndeg - integer
+c        the degree of the basis
+c     nup - the number of upward iterations to run 
+c     type - character
+c        the type of the basis (for now, total degree
+c        is the only implemented option)
+c        type = 't', total degree
+c        type = 'f', full tensor
+c     zk - complex double
+c        Helmholtz parameter
+c     ldahmat - integer
+c        leading dimension of ahmat
+c     output:
+c     
+c     ahmat - complex array (ldahmat,*)
+c        column i gives the coefficients of the anti-Helmholtzian of
+c        the ith function in the polynomial basis determined by ndeg
+c        and type. The coefficients are in that same basis for the
+c        downward recurrence, i.e. this function gives an anti-
+c        Helmholtzian that's of the same degree.
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+      implicit none
+      integer ndeg, ldahmat, nup
+      complex *16 ahmat(ldahmat,*), zk
+      character type
+c     local
+      real *8, allocatable :: dxxs(:,:,:), temp1(:,:), dints(:,:,:)
+      integer, allocatable :: ip2ind(:,:,:), ind2p(:,:)
+      integer, allocatable :: ip2indout(:,:,:)
+      real *8, allocatable :: choose(:,:), tempv(:)
+      complex *16 one, zero, zk2, zk2inv, zkpow
+      real *8, allocatable :: dlap(:,:)
+      data one / (1.0d0,0.0d0) /
+      data zero / (0.0d0,0.0d0) /
+
+      real *8 chp, alpha, beta, sign, lapval, di, dj
+      real *8 dk, dxxk, dxxj, dxxi, chdxx
+      
+      integer npol, i, j, iii, niter, n, npol1d, ndegout, npolout
+      integer niterp, id,jd,kd,il,jl,kl,ilap,ip,kp,jp,indd
+      integer nord, io, jo, ko, niterloc, jjj, jint, jdeg
+      integer iint, kint, indout, ni, nj, nk
+
+      ndegout = ndeg + 2*nup
+      
+      call legetens_npol_3d(ndeg,type,npol)
+      call legetens_npol_3d(ndegout,type,npolout)
+
+      npol1d = ndeg + 1
+
+      n = ndeg + 1
+      
+      allocate(ip2ind(0:ndeg,0:ndeg,0:ndeg),ind2p(3,npol))
+      allocate(ip2indout(0:ndegout,0:ndegout,0:ndegout))
+      
+      call legetens_pow2ind_3d(ndeg,type,ip2ind)
+      call legetens_ind2pow_3d(ndeg,type,ind2p)
+      call legetens_pow2ind_3d(ndegout,type,ip2indout)
+
+      niter = ndeg/2
+
+c
+
+      zk2 = zk**2
+      zk2inv = one/zk2
+      
+
+
+c     power up to get necessary mutliples of dxx and Ixx matrix
+      
+      allocate(dxxs(0:ndeg,0:ndeg,0:niter))
+      allocate(temp1(0:ndeg,0:ndeg))
+
+      do i = 0,ndeg
+         do j = 0,ndeg
+            temp1(j,i) = 0.0d0
+         enddo
+      enddo
+            
+      
+      call legecoeff_d2mat(ndeg,temp1,npol1d)
+      
+      do i = 0,ndeg
+         do j = 0,ndeg
+            dxxs(j,i,0) = 0.0d0
+            if (j .eq. i) dxxs(j,i,0) = 1.0d0
+            dxxs(j,i,1) = temp1(j,i)
+         enddo
+      enddo
+
+      alpha = 1.0d0
+      beta = 0.0d0
+      do iii = 2,niter
+         call dgemm('N','N',npol1d,npol1d,npol1d,alpha,temp1,npol1d,
+     1       dxxs(0,0,iii-1),npol1d,beta,dxxs(0,0,iii),npol1d)
+      enddo
+      
+      allocate(dints(0:ndegout+2*niter,0:ndeg,0:(niter+nup)),
+     1     tempv(0:ndegout+2*niter))
+
+      do i = 0,ndeg
+         do j = 0,ndegout+2*niter
+            dints(j,i,0) = 0.0d0
+            if (j .eq. i) dints(j,i,0) = 1.0d0
+         enddo
+      enddo
+      
+      do i = 1,(nup+niter)
+         do j = 0,ndeg
+            jdeg = j + 2*(i-1)
+            call legeinte_rect(dints(0,j,i-1),jdeg,tempv)
+            jdeg = jdeg + 1
+            call legeinte_rect(tempv,jdeg,dints(0,j,i))
+         enddo
+      enddo
+
+C     compute choose(i,j) to be [(i-1) choose (j-1)].
+
+      nord = nup + niter
+      allocate(choose(nord+1,nord+1))
+
+      choose(1,1) = 1.0d0
+      do i = 2,nord+1
+         choose(1,i) = 0.0d0
+         choose(i,1) = 1.0d0
+      enddo
+      do i = 2, nord + 1
+         do j = 2, nord + 1
+            choose(i,j) = choose(i-1,j-1) + choose(i-1,j)
+         enddo
+      enddo
+      
+c     combine terms using expanded expressions for
+c     lap^(-1)
+
+
+      do i = 1,npol
+
+         do j = 1,npolout
+            ahmat(j,i) = zero
+         enddo
+         
+         ip = ind2p(1,i)
+         jp = ind2p(2,i)
+         kp = ind2p(3,i)
+
+
+         if (ip .ge. jp .and. ip .ge. kp) then
+c     x pow is greatest
+            
+            zkpow = one
+            do iii = 1,nup
+               
+               sign = 1.0d0
+               
+               do jjj = 0,niter
+
+                  chp = choose(iii+jjj-1+1,iii-1+1)
+
+                  do nj = 0,jjj
+                     nk = jjj-nj
+                     chdxx = choose(jjj+1,nk+1)
+c                     if (nj .gt. jp/2 .or. nk .gt. kp/2) cycle
+                     do jo = 0,jp-2*nj
+                        dxxj = dxxs(jo,jp,nj)
+                        do ko = 0,kp-2*nk
+                           dxxk = dxxs(ko,kp,nk)
+                           
+                           do iint = 0,ip+2*iii+2*jjj
+                              di = dints(iint,ip,iii+jjj)
+                              indout = ip2indout(iint,jo,ko)
+                              
+                              ahmat(indout,i) = ahmat(indout,i) +
+     1                             di*dxxj*dxxk*zkpow*sign*chp*chdxx
+                           enddo
+                        enddo
+                     enddo
+                  enddo
+                  sign = -sign
+               enddo
+               
+               zkpow = -zkpow*zk2
+
+            enddo
+
+         else if (jp .ge. ip .and. jp .ge. kp) then
+c     y pow is greatest
+
+            zkpow = one
+            do iii = 1,nup
+               
+               sign = 1.0d0
+               
+               do jjj = 0,niter
+
+                  chp = choose(iii+jjj-1+1,iii-1+1)
+                  do ni = 0,jjj
+                     nk = jjj-ni
+                     if (ni .gt. ip/2 .or. nk .gt. kp/2) cycle
+                     chdxx = choose(jjj+1,nk+1)
+                     do io = 0,ip-2*ni
+                        dxxi = dxxs(io,ip,ni)
+                        do ko = 0,kp-2*nk
+                           dxxk = dxxs(ko,kp,nk)
+                           
+                           do jint = 0,jp+2*iii+2*jjj
+                              dj = dints(jint,jp,iii+jjj)
+                              indout = ip2indout(io,jint,ko)
+                              ahmat(indout,i) = ahmat(indout,i) +
+     1                             dj*dxxi*dxxk*zkpow*sign*chp*chdxx
+                           enddo
+                        enddo
+                     enddo
+                  enddo
+                  sign = -sign
+               enddo
+
+               zkpow = -zkpow*zk2
+
+            enddo
+            
+            
+         else
+c     z pow is greatest
+
+            zkpow = one
+            do iii = 1,nup
+               
+               sign = 1.0d0
+               
+               do jjj = 0,niter
+
+                  chp = choose(iii+jjj-1+1,iii-1+1)
+                  do ni = 0,jjj
+                     nj = jjj-ni
+                     if (ni .gt. ip/2 .or. nj .gt. jp/2) cycle
+                     chdxx = choose(jjj+1,nj+1)
+                     do io = 0,ip-2*ni
+                        dxxi = dxxs(io,ip,ni)
+                        do jo = 0,jp-2*nj
+                           dxxj = dxxs(jo,jp,nj)
+                           
+                           do kint = 0,kp+2*iii+2*jjj
+                              dk = dints(kint,kp,iii+jjj)
+                              indout = ip2indout(io,jo,kint)
+                              ahmat(indout,i) = ahmat(indout,i) +
+     1                             dk*dxxi*dxxj*zkpow*sign*chp*chdxx
+                           enddo
+                        enddo
+                     enddo
+                  enddo
+                  sign = -sign
+               enddo
+
+               zkpow = -zkpow*zk2
+
+            enddo
+            
+            
+         endif
+
+      enddo
+            
+            
+      return
+      end
+c
+c
+c
+c     
+      
+
+      
