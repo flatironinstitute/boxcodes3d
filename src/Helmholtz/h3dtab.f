@@ -616,7 +616,7 @@ c
       norder_p = ndegp+1
 
       call legetens_npol_2d(ndegp,type,npols)
-      call prinf('npols=*',npols,1)
+cc      call prinf('npols=*',npols,1)
 c     npols = norder_p*norder_p
 
       bs = 2.0d0
@@ -721,7 +721,7 @@ c
      1        nqorderf)
       
       intype = 2
-      call prinf("Starting adap quad for near*",i,0)
+cc      call prinf("Starting adap quad for near*",i,0)
 
 
       zpars(1) = zk
@@ -750,7 +750,7 @@ C$OMP END PARALLEL DO
       t2 = second()
 C$       t2 = omp_get_wtime()      
 
-      call prin2('time taken in evaluating near=*',t2-t1,1)
+cc      call prin2('time taken in evaluating near=*',t2-t1,1)
 
 
       call squarearbq_pts(nqorderf,nnodes)
@@ -759,8 +759,8 @@ C$       t2 = omp_get_wtime()
       nqpts = nnodes*nu*nu
       allocate(qnodes(2,nqpts),qwts(nqpts))
 
-      call prinf('ntarg_f=*',ntarg_f,1)
-      call prinf('ntarg_n=*',ntarg_n,1)
+cc      call prinf('ntarg_f=*',ntarg_f,1)
+cc      call prinf('ntarg_n=*',ntarg_n,1)
 
       call gen_xg_uniftree_nodes(nqorderf,nnodes,nu,nqpts,qnodes,qwts)
 
@@ -816,20 +816,70 @@ c
       if(tol.lt.0.49d-6) iprec = 3
       if(tol.lt.0.49d-9) iprec = 4
 
-      print *, "iprec=",iprec
+cc      print *, "iprec=",iprec
 
       if(iprec.eq.0) then
-        nqorder = 6
-        eps = 0.9d-2
-        nqmax = 3000
-        nqorderf = 4
+c
+c   norder, max(err/max(true,1)), max(err/true),max(err)/max(true)
+c       4, 0.1e-2, 0.7e-2, 0.1e-2 
+c       6, 0.1e-2, 0.8, 0.1e-2
+c       8, 0.5e-3, 0.8e+2, 0.3e-3
+c      12, 0.1e-2, 0.1e+5, 0.6e-3 
+c
+         nqmax = 1500
+         nqorderf = 10
+         eps = 0.5d-2
+         if(norder.le.4) then
+           nqorder = 7
+         else if(norder.gt.4.and.norder.le.6) then
+           nqmax = 2000
+           eps = 0.5d-2
+           nqorder = 12
+           nqorderf = 12
+         else if(norder.gt.6.and.norder.le.8) then
+           nqorder = 14
+           eps = 0.1d-2
+           nqmax = 5000
+           nqorderf = 12
+         else if(norder.gt.8) then
+           nqorder = 20
+           eps = 0.5d-3
+           nqmax = 12000
+           nqorderf = 20
+         endif
+
       endif
 
       if(iprec.eq.1) then
-        nqorder = 7
-        eps = 0.5d-2
-        nqmax = 3000
-        nqorderf = 4
+c
+c   norder, max(err/max(true,1)), max(err/true),max(err)/max(true)
+c       4, 0.2e-4, 0.7e-2, 0.1e-4 
+c       6, 0.8e-4, 0.2, 0.6e-4
+c       8, 0.1e-4, 0.8e+2, 0.8e-4
+c      12, 0.2e-3, 0.1e+5, 0.1e-3 
+c
+         nqmax = 1500
+         nqorderf = 10
+         eps = 0.3d-2
+         if(norder.le.4) then
+           nqorder = 7
+         else if(norder.gt.4.and.norder.le.6) then
+           nqmax = 2000
+           eps = 0.3d-2
+           nqorder = 12
+           nqorderf = 12
+         else if(norder.gt.6.and.norder.le.8) then
+           nqorder = 14
+           eps = 0.6d-3
+           nqmax = 5000
+           nqorderf = 12
+         else if(norder.gt.8) then
+           nqorder = 20
+           eps = 0.1d-3
+           nqmax = 12000
+           nqorderf = 20
+         endif
+
       endif
 
       if(iprec.eq.2) then
@@ -861,17 +911,57 @@ c
       endif
 
       if(iprec.eq.3) then
-         nqorder = 25
+c
+c   norder, max(err/max(true,1)), max(err/true),max(err)/max(true)
+c       4, 0.4e-10, 0.3e-7, 0.3e-10 
+c       6, 0.2e-9, 0.1e-5, 0.1e-9
+c       8, 0.6e-10, 0.8e-3, 0.4e-10
+c      12, 0.4e-10, 0.1e5, 0.3e-10 
+c
+         nqorder = 20
          eps = 3.0d-7
-         nqmax = 8000
-         nqorderf = 12
+         nqmax = 4000
+         nqorderf = 20
+         if(norder.le.4) then
+         else if(norder.gt.4.and.norder.le.6) then
+           nqorderf = 22
+         else if(norder.gt.6.and.norder.le.8) then
+           nqmax = 7000
+           eps = 3.0d-8
+           nqorderf = 24
+         else if(norder.gt.8) then
+           nqorder = 24
+           eps = 3.0d-9
+           nqmax = 25000
+           nqorderf = 30
+         endif
       endif
 
       if(iprec.eq.4) then
-        nqorder = 30
-        eps = 3.0d-10
-        nqmax = 10000
-        nqorderf = 15
+c
+c   NOT TESTED for accuracy
+c
+c
+c   norder, max(err/max(true,1)), max(err/true),max(err)/max(true)
+c
+         nqorder = 24
+         eps = 3.0d-10
+         nqmax = 6000
+         nqorderf = 24
+         if(norder.le.4) then
+         else if(norder.gt.4.and.norder.le.6) then
+           nqorderf = 26
+         else if(norder.gt.6.and.norder.le.8) then
+           nqmax = 11000
+           eps = 3.0d-11
+           nqorderf = 28
+         else if(norder.gt.8) then
+           nqorder = 28
+           eps = 3.0d-12
+           nqmax = 30000
+           nqorderf = 34
+         endif
+        
       endif
 
 

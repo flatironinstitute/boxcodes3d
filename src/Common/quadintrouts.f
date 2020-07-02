@@ -114,7 +114,7 @@ C$OMP END PARALLEL DO
       alpha = 1
       beta = 0
 
-      print *, "Starting blas"
+cc      print *, "Starting blas"
       call zgemm(transa,transb,npols,ntarg,nqpts,alpha,sigvals,npols,
      1   xkernvals,nqpts,beta,cintvals,npols)
       
