@@ -1,5 +1,5 @@
 
-EXEC = vol_tree
+EXEC = test_eaton3d
 
 #HOST = osx
 HOST=linux-gfortran

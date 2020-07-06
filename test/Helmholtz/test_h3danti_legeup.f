@@ -22,17 +22,16 @@ c$    use omp_lib
       call prini(6,13)
 
 
-      ndeg = 8
-      nup = 12
+      ndeg = 4
+      nup = 20
 
       ndegout = ndeg + nup*2
       
-      tol = 1d-15
-
       type = 't'
 
-      zk = sqrt(1.5d0) + im*sqrt(1.5d0)
-      zk = 1.5d0
+      rr = 5.5d0
+      zk = rr*(1/sqrt(2.0d0) + im/sqrt(2.0d0))
+c      zk = rr
       
       call legetens_npol_3d(ndeg,type,npol)
       call legetens_npol_3d(ndegout,type,npolout)

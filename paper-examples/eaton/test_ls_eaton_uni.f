@@ -49,7 +49,7 @@ cc      rsig = 0.005d0
      
 
       zk = 2.0d0
-      norder = 8
+      norder = 4
       iptype = 1
       eta = 3
 
