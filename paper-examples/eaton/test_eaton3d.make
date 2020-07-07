@@ -49,9 +49,7 @@ endif
 
 
 SRC = ../../src
-FMM3D = ../../../FMM3D/src
-UTILS_DIR = ../../../utils
-
+FMM3D = ~/FMM3D/src
 
 .PHONY: all clean list
 
@@ -59,7 +57,7 @@ SOURCES =  test_eaton3d.f eaton.f prolcrea.f proquadr.f \
   orthom.f nrleastsq.f nonsym_eigvals.f corrand.f qrsolve.f \
   qerrfun.f \
   $(SRC)/Common/prini_new.f \
-  $(UTILS_DIR)/legeexps.f \
+  $(FMM3D)/Common/legeexps.f \
   $(SRC)/Common/tree_vol.f \
   $(SRC)/Common/legetens.f \
   $(SRC)/Common/voltab3d.f \
@@ -91,8 +89,8 @@ SOURCES =  test_eaton3d.f eaton.f prolcrea.f proquadr.f \
   $(FMM3D)/Helmholtz/hwts3e.f \
   $(FMM3D)/Helmholtz/hnumphys.f \
   $(FMM3D)/Helmholtz/hnumfour.f \
-  $(UTILS_DIR)/hkrand.f \
-  $(UTILS_DIR)/dlaran.f \
+  $(FMM3D)/Common/hkrand.f \
+  $(FMM3D)/Common/dlaran.f \
   $(SRC)/Common/aquad.f \
   $(SRC)/Common/cerf.f90 \
 

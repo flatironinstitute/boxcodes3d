@@ -1,7 +1,7 @@
 
       implicit real *8 (a-h,o-z)
-      real *8, allocatable :: w(:), rs(:)
-      real *8, allocatable :: eplot(:),eplot2(:)
+      real *8, allocatable :: w(:), rs(:), w2(:)
+      real *8, allocatable :: eplot(:),eplot2(:),eplot3(:)
       real *8 clege(1000), ab(2,3)
       call prini(6,13)
 
@@ -33,7 +33,7 @@ c     with
 
       rh = (rpb-rpa)/(nplot-1)
 
-      allocate(rs(nplot),eplot(nplot),eplot2(nplot))
+      allocate(rs(nplot),eplot(nplot),eplot2(nplot),eplot3(nplot))
       
       do i = 1,nplot
          r = rpa + rh*(i-1)
@@ -53,15 +53,32 @@ c
       call cpu_time(t2)
 
       write(*,*) 'pts per second ', nplot/(t2-t1)
+
+
+      
+      nlege = 40
+      lenw2 = nlege + 10
+      allocate(w2(lenw2))
+      
+      call eaton_pre(a,b,w2,lenw2,nlege)
+      call cpu_time(t1)
+      do i = 1,nplot
+         call eaton_post(rs(i),w2,eplot3(i))
+      enddo
+      call cpu_time(t2)
+      
+      write(*,*) 'pts per second ', nplot/(t2-t1)
       
       open(unit=33,file='eaton_interp.txt')
 
       do i = 1,nplot
          r = ra + rh*(i-1)
-         write(33,*) r, eplot(i), eplot2(i)
+         write(33,*) r, eplot(i), eplot2(i), eplot3(i)
       enddo
 
       close(33)
+
+
          
       stop
       end
