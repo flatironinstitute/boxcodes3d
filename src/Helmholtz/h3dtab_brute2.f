@@ -246,6 +246,122 @@ c
 c
 c
 c
+      subroutine h3dtabp_ref_brute_new(ndeg,zk,tol,tab,ldtab)
+
+c
+c
+c     generate the Helmholtz potential table at the reference
+c     points using adaptive integration
+c
+c
+c     input
+c
+c     ndeg - integer, highest degree of the basis polynomials
+c                    (measured in total degree, e.g. x^0y^1z^2
+c                     has total degree 3)
+c     zk - complex*16, helmholtz parameter
+c     tol - input tolerance
+c     ldtab - integer, leading dimension of the output table
+c
+c     output
+c      
+c     tab - complex *16 array (ldtab,*), tab(i,j) is the integral
+c     of the j-th tensor polynomial (in the ordering specified
+c     in legetens.f) against the scaled green's function
+c     exp(ikr)/r at the i-th reference target point (see tensrefpts3d)
+     
+      implicit real *8 (a-h,o-z)
+      integer ndeg,ldtab
+      complex *16 tab(ldtab,*), zk
+
+c       local      
+      complex *16, allocatable :: tab_t(:,:),tab_tmp(:,:)
+      real *8 xyzc(3),bs,xq(100),w(100)
+      real *8, allocatable :: xyztarg(:,:)
+      real *8, allocatable :: xyztmp(:,:)
+      integer, allocatable :: iindtmp(:)
+      character ptype
+
+      external h3d_vslp
+
+
+      n = ndeg + 1
+      norder = n
+
+      call legetens_npol_3d(ndeg,'t',npols)
+
+      bs = 2.0d0
+      xyzc(1) = -1
+      xyzc(2) = -1
+      xyzc(3) = -1
+
+      itype = 0
+      call legeexps(itype,n,xq,u,v,w)
+
+      do i=1,norder
+        xq(i) = xq(i) + 1
+      enddo
+
+
+      npt = n**3
+      ntarg = 10*npt
+      allocate(xyztarg(3,ntarg))
+      allocate(xyztmp(3,ntarg),iindtmp(ntarg))
+
+      istart1 = 4*npt+1
+      istart2 = 7*npt+1
+      call tensrefpts3d(xq,norder,bs,xyzc,xyztarg,xyztarg(1,istart1),
+     1  xyztarg(1,istart2))
+
+cc      call prin2('xyztarg=*',xyztarg,3*npt)
+      
+      allocate(tab_t(npols,ntarg))
+c
+c       vector initialization
+c
+      tab_t = 0
+
+
+      eps = tol
+      ncmax = 30000
+      nqorder = 11
+
+      call prin2('zk=*',zk,2)
+
+      ntt = 1
+      
+      call cpu_time(t1)
+C$     t1 = omp_get_wtime()
+      
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
+C$OMP$SCHEDULE(DYNAMIC)
+      do i=npt+1,ntarg
+        call ccubeints_adap(eps,norder,'t',npols,ntt,xyztarg(1,i),
+     1        ncmax,h3d_vslp,dpars,zk,ipars,nqorder,tab_t(1,i))
+      enddo
+C$OMP END PARALLEL DO
+
+      call cpu_time(t2)
+C$      t2 = omp_get_wtime()     
+      
+c
+c    now transpose tab_t
+c      
+      do i=1,ntarg
+        do j=1,npols
+          tab(i,j) = tab_t(j,i) 
+        enddo
+      enddo
+
+      return
+      end
+
+
+
+c
+c
+c
+c
 
       subroutine h3d_vslp(x,y,dpars,zpars,ipars,f)
       implicit real *8 (a-h,o-z)

@@ -395,11 +395,9 @@ c
       do ilev=0,nlmax
         idone = 1
         nproclist = 0
-        print *, ilev,nproclist0
         
         do iproc = 1,nproclist0
           icube = istack(iproc)
-          print *, icube,ncube
 
           if(ncube+8.gt.ncmax) then
             print *, "Too many quads in cquadadap"

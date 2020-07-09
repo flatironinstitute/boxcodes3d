@@ -1,5 +1,5 @@
 
-EXEC = int2greentabref
+EXEC = int2-opt-h3dtabref 
 
 HOST = osx
 #HOST=linux-gfortran
@@ -31,7 +31,7 @@ ifeq ($(HOST),linux-gfortran-openmp)
 FC = gfortran
 FFLAGS = -O3 -march=native --openmp -funroll-loops -ftree-vectorize -ffast-math -c -w  
 FLINK = gfortran -w --openmp -o $(EXEC) 
-FEND = -lblas -llapack
+FEND = -lopenblas
 endif
 
 ifeq ($(HOST),linux-ifort)
@@ -68,7 +68,7 @@ SOURCES =  test_opt_h3dtabref.f \
   $(SRC)/Helmholtz/lommel.f \
   $(SRC)/Helmholtz/h3dtab.f \
   $(SRC)/Helmholtz/h3dtab_brute2.f \
-  $(SRC)/Common/cubeintrouts.f
+  $(SRC)/Common/cubeintrouts2.f
 
 
 ifeq ($(WITH_SECOND),1)
@@ -91,7 +91,7 @@ OBJECTS = $(patsubst %.f,%.o,$(patsubst %.f90,%.o,$(SOURCES)))
 all: $(OBJECTS)
 	rm -f $(EXEC)
 	$(FLINK) $(OBJECTS) $(FEND)
-	./$(EXEC) 2 
+	./$(EXEC) 2 3 
 
 clean:
 	rm -f $(OBJECTS)
