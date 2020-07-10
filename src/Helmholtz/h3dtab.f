@@ -584,8 +584,380 @@ c
 c     
 c
 c
-      subroutine h3d_facelayerpot_eval(tol,zk,ndeg,ndegp,type,slp_pots,
-     1  dlp_pots,lda)
+      subroutine h3d_facelayerpot_eval_new(tol,zk,ndeg,ndegp,type,
+     1  slp_pots,dlp_pots,lda)
+      implicit real *8 (a-h,o-z)
+      real *8 tol
+      complex *16 zk
+      integer ndeg,ndegp,lda
+      complex *16 slp_pots(lda,*),dlp_pots(lda,*)
+      complex *16, allocatable :: slp_near(:,:),dlp_near(:,:)
+      complex *16, allocatable :: slp_far(:,:),dlp_far(:,:)
+      character type
+
+      real *8, allocatable :: xyztarg(:,:),xyztarg_near(:,:)
+      real *8, allocatable :: xyztarg_far(:,:)
+      integer, allocatable :: ifar_ind(:),inear_ind(:)
+      real *8, allocatable :: xyztmp(:,:),qnodes(:,:),qwts(:)
+      real *8 xq(ndeg+1),xyzc(3),u,v,w
+      integer ipars(10)
+      real *8 dpars(5)
+      complex *16 zpars(3)
+
+      external h3d_slp,h3d_dlp
+
+      integer norder, norder_p, ncores
+
+      done = 1
+      pi = atan(done)*4
+
+      norder = ndeg+1
+
+      norder_p = ndegp+1
+
+      call legetens_npol_2d(ndegp,type,npols)
+cc      call prinf('npols=*',npols,1)
+c     npols = norder_p*norder_p
+
+      bs = 2.0d0
+      xyzc(1) = -1
+      xyzc(2) = -1
+      xyzc(3) = -1 
+
+
+      itype = 0
+      call legeexps(itype,norder,xq,u,v,w)
+      do i=1,norder
+        xq(i) = xq(i) + 1
+      enddo
+c
+      nppbox = norder*norder*norder
+      ntarg0 = 10*nppbox
+      allocate(xyztmp(3,ntarg0))
+
+      istart1 = 4*nppbox+1
+      istart2 = 7*nppbox+1
+      
+      call tensrefpts3d(xq,norder,bs,xyzc,xyztmp,xyztmp(1,istart1),
+     1        xyztmp(1,istart2))
+
+      ntarg = 6*ntarg0
+      allocate(xyztarg(3,ntarg))
+
+      do i=1,ntarg0
+        xyztarg(1,i+0*ntarg0) = xyztmp(2,i)
+        xyztarg(2,i+0*ntarg0) = xyztmp(3,i)
+        xyztarg(3,i+0*ntarg0) = xyztmp(1,i)+1
+
+        xyztarg(1,i+1*ntarg0) = xyztmp(2,i)
+        xyztarg(2,i+1*ntarg0) = xyztmp(3,i)
+        xyztarg(3,i+1*ntarg0) = xyztmp(1,i)-1
+
+        xyztarg(1,i+2*ntarg0) = xyztmp(1,i)
+        xyztarg(2,i+2*ntarg0) = xyztmp(3,i)
+        xyztarg(3,i+2*ntarg0) = xyztmp(2,i)+1
+        
+        xyztarg(1,i+3*ntarg0) = xyztmp(1,i)
+        xyztarg(2,i+3*ntarg0) = xyztmp(3,i)
+        xyztarg(3,i+3*ntarg0) = xyztmp(2,i)-1
+
+        xyztarg(1,i+4*ntarg0) = xyztmp(1,i)
+        xyztarg(2,i+4*ntarg0) = xyztmp(2,i)
+        xyztarg(3,i+4*ntarg0) = xyztmp(3,i)+1
+
+        xyztarg(1,i+5*ntarg0) = xyztmp(1,i)
+        xyztarg(2,i+5*ntarg0) = xyztmp(2,i)
+        xyztarg(3,i+5*ntarg0) = xyztmp(3,i)-1
+      enddo
+      
+
+      nquadmax = 8000
+      nqorder = 20
+      eps = tol
+      call h3d_get_eps_nqorder_nqmax(tol,norder,eps,nqorder,nquadmax,
+     1        nqorderf)
+      
+      intype = 2
+cc      call prinf("Starting adap quad for near*",i,0)
+
+
+      zpars(1) = zk
+      ntt = 1
+
+
+      t1 = second()
+C$       t1 = omp_get_wtime()  
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
+c$OMP& SCHEDULE(DYNAMIC)      
+      do i=1,ntarg
+
+        call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
+     1     xyztarg(1,i),nquadmax,h3d_slp,dpars,zpars,ipars,
+     2     nqorder,slp_pots(1,i))
+
+        call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
+     1     xyztarg(1,i),nquadmax,h3d_dlp,dpars,zpars,ipars,
+     2     nqorder,dlp_pots(1,i))
+      enddo
+C$OMP END PARALLEL DO      
+      t2 = second()
+C$       t2 = omp_get_wtime()      
+
+      return
+      end
+c
+c
+c
+c
+c
+      subroutine h3d_get_eps_nqorder_nqmax(tol,norder,eps,nqorder,
+     1   nqmax,nqorderf)
+      implicit none
+      real *8 tol,eps
+      integer norder,nqorder,nqmax,iprec,nqorderf
+c
+c
+c        fix this routine to optimize performance
+c
+
+      iprec = 0
+      eps = tol
+      nqorder = 10
+
+      if(tol.lt.0.49d-2) iprec = 1
+      if(tol.lt.0.49d-3) iprec = 2
+      if(tol.lt.0.49d-6) iprec = 3
+      if(tol.lt.0.49d-9) iprec = 4
+
+cc      print *, "iprec=",iprec
+
+      if(iprec.eq.0) then
+c
+c   norder, max(err/max(true,1)), max(err/true),max(err)/max(true)
+c       4, 0.1e-2, 0.7e-2, 0.1e-2 
+c       6, 0.1e-2, 0.8, 0.1e-2
+c       8, 0.5e-3, 0.8e+2, 0.3e-3
+c      12, 0.1e-2, 0.1e+5, 0.6e-3 
+c
+         nqmax = 1500
+         nqorderf = 10
+         eps = 0.5d-2
+         if(norder.le.4) then
+           nqorder = 7
+         else if(norder.gt.4.and.norder.le.6) then
+           nqmax = 2000
+           eps = 0.5d-2
+           nqorder = 12
+           nqorderf = 12
+         else if(norder.gt.6.and.norder.le.8) then
+           nqorder = 14
+           eps = 0.1d-2
+           nqmax = 5000
+           nqorderf = 12
+         else if(norder.gt.8) then
+           nqorder = 20
+           eps = 0.5d-3
+           nqmax = 12000
+           nqorderf = 20
+         endif
+
+      endif
+
+      if(iprec.eq.1) then
+c
+c   norder, max(err/max(true,1)), max(err/true),max(err)/max(true)
+c       4, 0.2e-4, 0.7e-2, 0.1e-4 
+c       6, 0.8e-4, 0.2, 0.6e-4
+c       8, 0.1e-4, 0.8e+2, 0.8e-4
+c      12, 0.2e-3, 0.1e+5, 0.1e-3 
+c
+         nqmax = 1500
+         nqorderf = 10
+         eps = 0.3d-2
+         if(norder.le.4) then
+           nqorder = 7
+         else if(norder.gt.4.and.norder.le.6) then
+           nqmax = 2000
+           eps = 0.3d-2
+           nqorder = 12
+           nqorderf = 12
+         else if(norder.gt.6.and.norder.le.8) then
+           nqorder = 14
+           eps = 0.6d-3
+           nqmax = 5000
+           nqorderf = 12
+         else if(norder.gt.8) then
+           nqorder = 20
+           eps = 0.1d-3
+           nqmax = 12000
+           nqorderf = 20
+         endif
+
+      endif
+
+      if(iprec.eq.2) then
+c
+c   norder, max(err/max(true,1)), max(err/true),max(err)/max(true)
+c       4, 0.3e-7, 0.2e-5, 0.3e-7 
+c       6, 0.3e-6, 0.3e-3, 0.2e-6
+c       8, 0.5e-6, 0.8e-1, 0.3e-6
+c      12, 0.5e-6, 6.6e3, 0.3e-6 
+c
+         nqmax = 5000
+         nqorderf = 16
+         eps = 0.3d-4
+         if(norder.le.4) then
+           nqorder = 12
+         else if(norder.gt.4.and.norder.le.6) then
+           nqorder = 14
+         else if(norder.gt.6.and.norder.le.8) then
+           nqorder = 14
+           eps = 0.5d-5
+           nqmax = 7000
+         else if(norder.gt.8) then
+           nqorder = 20
+           eps = 0.1d-5
+           nqmax = 20000
+           nqorderf = 20
+         endif
+
+      endif
+
+      if(iprec.eq.3) then
+c
+c   norder, max(err/max(true,1)), max(err/true),max(err)/max(true)
+c       4, 0.4e-10, 0.3e-7, 0.3e-10 
+c       6, 0.2e-9, 0.1e-5, 0.1e-9
+c       8, 0.6e-10, 0.8e-3, 0.4e-10
+c      12, 0.4e-10, 0.1e5, 0.3e-10 
+c
+         nqorder = 20
+         eps = 3.0d-7
+         nqmax = 4000
+         nqorderf = 20
+         if(norder.le.4) then
+         else if(norder.gt.4.and.norder.le.6) then
+           nqorderf = 22
+         else if(norder.gt.6.and.norder.le.8) then
+           nqmax = 7000
+           eps = 3.0d-8
+           nqorderf = 24
+         else if(norder.gt.8) then
+           nqorder = 24
+           eps = 3.0d-9
+           nqmax = 25000
+           nqorderf = 30
+         endif
+      endif
+
+      if(iprec.eq.4) then
+c
+c   NOT TESTED for accuracy
+c
+c
+c   norder, max(err/max(true,1)), max(err/true),max(err)/max(true)
+c
+         nqorder = 24
+         eps = 3.0d-10
+         nqmax = 6000
+         nqorderf = 24
+         if(norder.le.4) then
+         else if(norder.gt.4.and.norder.le.6) then
+           nqorderf = 26
+         else if(norder.gt.6.and.norder.le.8) then
+           nqmax = 11000
+           eps = 3.0d-11
+           nqorderf = 28
+         else if(norder.gt.8) then
+           nqorder = 28
+           eps = 3.0d-12
+           nqmax = 30000
+           nqorderf = 30
+         endif
+        
+      endif
+
+
+
+      return
+      end
+
+c
+c
+c
+c
+c
+c
+c
+      subroutine h3d_get_nqorder_far(tol,nqorder)
+      implicit none
+      real *8 tol,eps
+      integer norder,nqorder
+c
+c
+c        fix this routine to optimize performance
+c
+      nqorder = 12
+      if(tol.le.0.5d-3) nqorder = 16
+      if(tol.le.0.5d-6) nqorder = 20
+      if(tol.le.0.5d-9) nqorder = 25
+      if(tol.le.0.5d-12) nqorder = 30
+      return
+      end
+
+c
+c
+c
+c
+c
+
+      subroutine h3d_slp(x,y,dpars,zpars,ipars,f)
+      implicit real *8 (a-h,o-z)
+      real *8 x(2),y(3),dpars(*)
+      complex *16 zpars(*),ima
+      data ima/(0.0d0,1.0d0)/
+      integer ipars(*)
+      complex *16 f
+
+      rr = sqrt((x(1)-y(1))**2 + (x(2)-y(2))**2 + y(3)**2)
+
+      f = exp(ima*zpars(1)*rr)/rr
+
+      return
+      end
+
+c      
+c      
+c
+c
+c
+c
+c
+
+      subroutine h3d_dlp(x,y,dpars,zpars,ipars,f)
+      implicit real *8 (a-h,o-z)
+      real *8 x(2),y(3),dpars(*)
+      complex *16 zpars(*),ima
+      data ima/(0.0d0,1.0d0)/
+      integer ipars(*)
+      complex *16 f,z
+
+      rr = sqrt((x(1)-y(1))**2 + (x(2)-y(2))**2 + y(3)**2)
+      z = ima*zpars(1)*rr
+
+      f = exp(z)*y(3)*(z-1.0d0)/rr**3
+
+      return
+      end
+
+c
+c
+c
+c     
+c
+c
+      subroutine h3d_facelayerpot_eval(tol,zk,ndeg,ndegp,type,
+     1  slp_pots,dlp_pots,lda)
       implicit real *8 (a-h,o-z)
       real *8 tol
       complex *16 zk
@@ -789,251 +1161,5 @@ C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j)
       enddo
 C$OMP END PARALLEL DO
 
-
       return
       end
-c
-c
-c
-c
-c
-      subroutine h3d_get_eps_nqorder_nqmax(tol,norder,eps,nqorder,
-     1   nqmax,nqorderf)
-      implicit none
-      real *8 tol,eps
-      integer norder,nqorder,nqmax,iprec,nqorderf
-c
-c
-c        fix this routine to optimize performance
-c
-
-      iprec = 0
-      eps = tol
-      nqorder = 10
-
-      if(tol.lt.0.49d-2) iprec = 1
-      if(tol.lt.0.49d-3) iprec = 2
-      if(tol.lt.0.49d-6) iprec = 3
-      if(tol.lt.0.49d-9) iprec = 4
-
-cc      print *, "iprec=",iprec
-
-      if(iprec.eq.0) then
-c
-c   norder, max(err/max(true,1)), max(err/true),max(err)/max(true)
-c       4, 0.1e-2, 0.7e-2, 0.1e-2 
-c       6, 0.1e-2, 0.8, 0.1e-2
-c       8, 0.5e-3, 0.8e+2, 0.3e-3
-c      12, 0.1e-2, 0.1e+5, 0.6e-3 
-c
-         nqmax = 1500
-         nqorderf = 10
-         eps = 0.5d-2
-         if(norder.le.4) then
-           nqorder = 7
-         else if(norder.gt.4.and.norder.le.6) then
-           nqmax = 2000
-           eps = 0.5d-2
-           nqorder = 12
-           nqorderf = 12
-         else if(norder.gt.6.and.norder.le.8) then
-           nqorder = 14
-           eps = 0.1d-2
-           nqmax = 5000
-           nqorderf = 12
-         else if(norder.gt.8) then
-           nqorder = 20
-           eps = 0.5d-3
-           nqmax = 12000
-           nqorderf = 20
-         endif
-
-      endif
-
-      if(iprec.eq.1) then
-c
-c   norder, max(err/max(true,1)), max(err/true),max(err)/max(true)
-c       4, 0.2e-4, 0.7e-2, 0.1e-4 
-c       6, 0.8e-4, 0.2, 0.6e-4
-c       8, 0.1e-4, 0.8e+2, 0.8e-4
-c      12, 0.2e-3, 0.1e+5, 0.1e-3 
-c
-         nqmax = 1500
-         nqorderf = 10
-         eps = 0.3d-2
-         if(norder.le.4) then
-           nqorder = 7
-         else if(norder.gt.4.and.norder.le.6) then
-           nqmax = 2000
-           eps = 0.3d-2
-           nqorder = 12
-           nqorderf = 12
-         else if(norder.gt.6.and.norder.le.8) then
-           nqorder = 14
-           eps = 0.6d-3
-           nqmax = 5000
-           nqorderf = 12
-         else if(norder.gt.8) then
-           nqorder = 20
-           eps = 0.1d-3
-           nqmax = 12000
-           nqorderf = 20
-         endif
-
-      endif
-
-      if(iprec.eq.2) then
-c
-c   norder, max(err/max(true,1)), max(err/true),max(err)/max(true)
-c       4, 0.3e-7, 0.2e-5, 0.3e-7 
-c       6, 0.3e-6, 0.3e-3, 0.2e-6
-c       8, 0.5e-6, 0.8e-1, 0.3e-6
-c      12, 0.5e-6, 6.6e3, 0.3e-6 
-c
-         nqmax = 5000
-         nqorderf = 16
-         eps = 0.3d-4
-         if(norder.le.4) then
-           nqorder = 12
-         else if(norder.gt.4.and.norder.le.6) then
-           nqorder = 14
-         else if(norder.gt.6.and.norder.le.8) then
-           nqorder = 14
-           eps = 0.5d-5
-           nqmax = 7000
-         else if(norder.gt.8) then
-           nqorder = 20
-           eps = 0.1d-5
-           nqmax = 20000
-           nqorderf = 20
-         endif
-
-      endif
-
-      if(iprec.eq.3) then
-c
-c   norder, max(err/max(true,1)), max(err/true),max(err)/max(true)
-c       4, 0.4e-10, 0.3e-7, 0.3e-10 
-c       6, 0.2e-9, 0.1e-5, 0.1e-9
-c       8, 0.6e-10, 0.8e-3, 0.4e-10
-c      12, 0.4e-10, 0.1e5, 0.3e-10 
-c
-         nqorder = 20
-         eps = 3.0d-7
-         nqmax = 4000
-         nqorderf = 20
-         if(norder.le.4) then
-         else if(norder.gt.4.and.norder.le.6) then
-           nqorderf = 22
-         else if(norder.gt.6.and.norder.le.8) then
-           nqmax = 7000
-           eps = 3.0d-8
-           nqorderf = 24
-         else if(norder.gt.8) then
-           nqorder = 24
-           eps = 3.0d-9
-           nqmax = 25000
-           nqorderf = 30
-         endif
-      endif
-
-      if(iprec.eq.4) then
-c
-c   NOT TESTED for accuracy
-c
-c
-c   norder, max(err/max(true,1)), max(err/true),max(err)/max(true)
-c
-         nqorder = 24
-         eps = 3.0d-10
-         nqmax = 6000
-         nqorderf = 24
-         if(norder.le.4) then
-         else if(norder.gt.4.and.norder.le.6) then
-           nqorderf = 26
-         else if(norder.gt.6.and.norder.le.8) then
-           nqmax = 11000
-           eps = 3.0d-11
-           nqorderf = 28
-         else if(norder.gt.8) then
-           nqorder = 28
-           eps = 3.0d-12
-           nqmax = 30000
-           nqorderf = 34
-         endif
-        
-      endif
-
-
-
-      return
-      end
-
-c
-c
-c
-c
-c
-c
-c
-      subroutine h3d_get_nqorder_far(tol,nqorder)
-      implicit none
-      real *8 tol,eps
-      integer norder,nqorder
-c
-c
-c        fix this routine to optimize performance
-c
-      nqorder = 12
-      if(tol.le.0.5d-3) nqorder = 16
-      if(tol.le.0.5d-6) nqorder = 20
-      if(tol.le.0.5d-9) nqorder = 25
-      if(tol.le.0.5d-12) nqorder = 30
-      return
-      end
-
-c
-c
-c
-c
-c
-
-      subroutine h3d_slp(x,y,dpars,zpars,ipars,f)
-      implicit real *8 (a-h,o-z)
-      real *8 x(2),y(3),dpars(*)
-      complex *16 zpars(*),ima
-      data ima/(0.0d0,1.0d0)/
-      integer ipars(*)
-      complex *16 f
-
-      rr = sqrt((x(1)-y(1))**2 + (x(2)-y(2))**2 + y(3)**2)
-
-      f = exp(ima*zpars(1)*rr)/rr
-
-      return
-      end
-
-c      
-c      
-c
-c
-c
-c
-c
-
-      subroutine h3d_dlp(x,y,dpars,zpars,ipars,f)
-      implicit real *8 (a-h,o-z)
-      real *8 x(2),y(3),dpars(*)
-      complex *16 zpars(*),ima
-      data ima/(0.0d0,1.0d0)/
-      integer ipars(*)
-      complex *16 f,z
-
-      rr = sqrt((x(1)-y(1))**2 + (x(2)-y(2))**2 + y(3)**2)
-      z = ima*zpars(1)*rr
-
-      f = exp(z)*y(3)*(z-1.0d0)/rr**3
-
-      return
-      end
-
