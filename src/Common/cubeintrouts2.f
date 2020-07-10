@@ -308,7 +308,7 @@ c
 c         for historic reasons
 c
       ksigpols = npols
-      allocate(istack(ncmax))
+      allocate(istack(2*ncmax))
       nproclist0 = 1
       istack(1) = 1
       allocate(cvals(ksigpols,ncmax))
