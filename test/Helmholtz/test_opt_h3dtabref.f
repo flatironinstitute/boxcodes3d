@@ -1,5 +1,5 @@
       implicit real *8 (a-h,o-z)
-      real *8 tts(3,3),errm_rel1(3,2),errm_rel2(3,2),errm_abs(3,2)
+      real *8 tts(3,3,2),errm_rel1(3,2),errm_rel2(3,2),errm_abs(3,2)
       real *8 tt3d(3),err_print(3)
       complex *16 zk, im, zero, one
       complex *16, allocatable :: tab_ref(:,:),tab(:,:),tab2(:,:)
@@ -77,12 +77,21 @@ c
           ifsphere = .true.
           if(ifsphere) ndeg2 = 20
           if(.not.ifsphere) ndeg2 = ndeg
+          
+          iflg = 1
 
           call h3dtabp_ref2(ndeg,zk,tol,tab,ntarg0,ifsphere,ndeg2,
-     1      tts(1,izk),tts(2,izk),tts(3,izk))
+     1      iflg,tts(1,izk,iflg),tts(2,izk,iflg),tts(3,izk,iflg))
           
+          
+          iflg = 2
+
+          call h3dtabp_ref2(ndeg,zk,tol,tab,ntarg0,ifsphere,ndeg2,
+     1      iflg,tts(1,izk,iflg),tts(2,izk,iflg),tts(3,izk,iflg))
           print *, "Done with 2d adap quad"
         
+          call prin2('tts iflg1=*',tts(1,izk,1),3)
+          call prin2('tts iflg2=*',tts(1,izk,2),3)
 
           call cpu_time(t1)
 C$           t1 = omp_get_wtime()          
@@ -126,7 +135,7 @@ cc
           call prin2(' *',i,0)
           call prin2(' *',i,0)
           call prin2('max errors=*',err_print,3)
-          call prin2('time taken=*',tts,3)
+          call prin2('time taken=*',tts(:,izk,:),6)
 
 
           errmax1 = 0
@@ -177,7 +186,7 @@ cc
         call prin2('max errors relative 1=*',errm_rel1,6)
         call prin2('max errors relative 2=*',errm_rel2,6)
         call prin2('max errors absolute=*',errm_abs,6)
-        call prin2('time taken 2d=*',tts(2,:),3)
+        call prin2('time taken 2d=*',tts(:,2,:),6)
         call prin2('time taken 3d adap=*',tt3d,3)
         stop
       endif
@@ -193,7 +202,7 @@ c
 c
       
       subroutine h3dtabp_ref2(ndeg,zk,tol,tab,ldtab,ifsphere,ndeg2,
-     1   tpat,tlpadap,tlpspr)
+     1   iflg,tpat,tlpadap,tlpspr)
 c
 c     generate the Helmholtz potential table at the reference
 c     points
@@ -209,6 +218,10 @@ c     tol - tolerance for error in table entries
 c     ldtab - integer, leading dimension of the output table
 c     ifsphere - whether to use spherical polynomials          
 c     ndeg2 - order used in adaptive integration
+c     iflg - flag for determining which version of adaptive
+c              integration to use
+c            if iflg = 1, one with precomputation is used
+c            if iflg = 2, one without precomputation is used
           
           
 c
@@ -240,6 +253,7 @@ c     local
       real *8, allocatable :: x(:,:), w(:), pols(:), v(:,:)
       real *8 u, pi4
       integer ldu, ldv
+      integer iflg
       
       complex *16 zero, im, one
       complex *16, allocatable :: tabtemp(:,:), ahc(:,:), zv(:,:)
@@ -335,8 +349,8 @@ C$      t1 = omp_get_wtime()
       allocate(slp_pots(npol2,ntarg),dlp_pots(npol2,ntarg))
       allocate(tabtemp(ntarg0,npol3))
 
-      call h3d_facelayerpot_eval(tol,zk,ndeg,ndeg2,type,slp_pots,
-     1  dlp_pots,npol2)
+      call h3d_facelayerpot_eval_new(tol,zk,ndeg,ndeg2,type,iflg,
+     1     slp_pots,dlp_pots,npol2)
 
       do ii = 1,npol3
          do jj = npt+1,ntarg0

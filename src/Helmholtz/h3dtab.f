@@ -585,7 +585,7 @@ c
 c
 c
       subroutine h3d_facelayerpot_eval_new(tol,zk,ndeg,ndegp,type,
-     1  slp_pots,dlp_pots,lda)
+     1  iflg,slp_pots,dlp_pots,lda)
       implicit real *8 (a-h,o-z)
       real *8 tol
       complex *16 zk
@@ -642,7 +642,9 @@ c
      1        xyztmp(1,istart2))
 
       ntarg = 6*ntarg0
-      allocate(xyztarg(3,ntarg))
+      allocate(xyztarg(3,ntarg),xyztarg_near(3,ntarg))
+      allocate(xyztarg_far(3,ntarg),inear_ind(ntarg))
+      allocate(ifar_ind(ntarg))
 
       do i=1,ntarg0
         xyztarg(1,i+0*ntarg0) = xyztmp(2,i)
@@ -682,26 +684,150 @@ cc      call prinf("Starting adap quad for near*",i,0)
 
 
       zpars(1) = zk
-      ntt = 1
+
+      if(iflg.eq.1) then
+      
+        ntarg_f = 0
+        ntarg_n = 0
+      
+        znear = 0.6d0
+        xynear = 1.6d0
+
+        do i=1,ntarg
+          x=xyztarg(1,i)
+          y=xyztarg(2,i)
+          z=xyztarg(3,i)
+          if((abs(z).le.znear.and.abs(x).le.xynear.
+     1        and.abs(y).le.xynear)) then
+            ntarg_n = ntarg_n + 1
+            xyztarg_near(1,ntarg_n) = xyztarg(1,i)
+            xyztarg_near(2,ntarg_n) = xyztarg(2,i)
+            xyztarg_near(3,ntarg_n) = xyztarg(3,i)
+            inear_ind(ntarg_n) = i
+          else
+            ntarg_f = ntarg_f + 1
+            xyztarg_far(1,ntarg_f) = xyztarg(1,i)
+            xyztarg_far(2,ntarg_f) = xyztarg(2,i)
+            xyztarg_far(3,ntarg_f) = xyztarg(3,i)
+            ifar_ind(ntarg_f) = i
+          endif
+        enddo
+
+        allocate(slp_near(npols,ntarg_n),dlp_near(npols,ntarg_n))
+        allocate(slp_far(npols,ntarg_f),dlp_far(npols,ntarg_f))
+
+        do i=1,ntarg_n
+          do j=1,npols
+            slp_near(j,i) = 0
+            dlp_near(j,i) = 0
+          enddo
+        enddo
+
+        do i=1,ntarg_f
+          do j=1,npols
+            slp_far(j,i) = 0
+            dlp_far(j,i) = 0
+          enddo
+        enddo
+
+        nquadmax = 8000
+        nqorder = 20
+        eps = tol
+        call h3d_get_eps_nqorder_nqmax(tol,norder,eps,nqorder,nquadmax,
+     1        nqorderf)
+      
+        intype = 2
 
 
-      t1 = second()
+
+        zpars(1) = zk
+
+        nbatches = 4
+        nttpcore = ceiling((ntarg_n+0.0d0)/nbatches)
+        ntt = 1
+
+        t1 = second()
+C$       t1 = omp_get_wtime()  
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,istart,iend,ntt)
+c$OMP& SCHEDULE(DYNAMIC)      
+        do i=1,nbatches
+          istart = (i-1)*nttpcore+1
+          iend = min(i*nttpcore,ntarg_n)
+          ntt = iend-istart+1
+
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
+     1       xyztarg_near(1,istart),nquadmax,h3d_slp,dpars,zpars,ipars,
+     2       nqorder,slp_near(1,istart))
+
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
+     1       xyztarg_near(1,istart),nquadmax,h3d_dlp,dpars,zpars,ipars,
+     2       nqorder,dlp_near(1,istart))
+        enddo
+C$OMP END PARALLEL DO      
+        t2 = second()
+C$       t2 = omp_get_wtime()      
+
+cc      call prin2('time taken in evaluating near=*',t2-t1,1)
+
+
+        call squarearbq_pts(nqorderf,nnodes)
+
+        nu = 3
+        nqpts = nnodes*nu*nu
+        allocate(qnodes(2,nqpts),qwts(nqpts))
+
+
+        call gen_xg_uniftree_nodes(nqorderf,nnodes,nu,nqpts,qnodes,qwts)
+
+        call cquadints_wnodes(norder_p,type,npols,ntarg_f,xyztarg_far,
+     1       h3d_slp,dpars,zpars,ipars,nqpts,qnodes,qwts,slp_far)
+
+        call cquadints_wnodes(norder_p,type,npols,ntarg_f,xyztarg_far,
+     1        h3d_dlp,dpars,zpars,ipars,nqpts,qnodes,qwts,dlp_far)
+
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j)
+        do i=1,ntarg_n
+          do j=1,npols
+            slp_pots(j,inear_ind(i)) = slp_near(j,i)
+            dlp_pots(j,inear_ind(i)) = dlp_near(j,i)
+          enddo
+        enddo
+C$OMP END PARALLEL DO
+
+
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j)
+        do i=1,ntarg_f
+          do j=1,npols
+            slp_pots(j,ifar_ind(i)) = slp_far(j,i)
+            dlp_pots(j,ifar_ind(i)) = dlp_far(j,i)
+          enddo
+        enddo
+C$OMP END PARALLEL DO
+      endif
+
+
+      if(iflg.eq.2) then
+        ntt = 1
+
+        t1 = second()
 C$       t1 = omp_get_wtime()  
 C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
 c$OMP& SCHEDULE(DYNAMIC)      
-      do i=1,ntarg
+        do i=1,ntarg
 
-        call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
+          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
      1     xyztarg(1,i),nquadmax,h3d_slp,dpars,zpars,ipars,
      2     nqorder,slp_pots(1,i))
 
-        call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
+          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
      1     xyztarg(1,i),nquadmax,h3d_dlp,dpars,zpars,ipars,
      2     nqorder,dlp_pots(1,i))
-      enddo
+        enddo
 C$OMP END PARALLEL DO      
-      t2 = second()
+        t2 = second()
 C$       t2 = omp_get_wtime()      
+      endif
+
 
       return
       end

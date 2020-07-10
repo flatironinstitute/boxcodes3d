@@ -3,7 +3,7 @@ EXEC = int2-opt-h3dtabref
 
 HOST = osx
 #HOST=linux-gfortran
-HOST=linux-gfortran-openmp
+#HOST=linux-gfortran-openmp
 #HOST=linux-gfortran-debug
 
 ifeq ($(HOST),osx)
@@ -17,7 +17,7 @@ ifeq ($(HOST),linux-gfortran)
 FC = gfortran
 FFLAGS = -O3 -march=native -funroll-loops -ftree-vectorize -ffast-math -c -w  
 FLINK = gfortran -w -o $(EXEC) 
-FEND = -lblas -llapack
+FEND = -lopenblas 
 endif
 
 ifeq ($(HOST),linux-gfortran-debug)
@@ -29,8 +29,8 @@ endif
 
 ifeq ($(HOST),linux-gfortran-openmp)
 FC = gfortran
-FFLAGS = -O3 -march=native --openmp -funroll-loops -ftree-vectorize -ffast-math -c -w  
-FLINK = gfortran -w --openmp -o $(EXEC) 
+FFLAGS = -O3 -march=native -fopenmp -funroll-loops -c -w  
+FLINK = gfortran -w -fopenmp -o $(EXEC) 
 FEND = -lopenblas
 endif
 
@@ -64,6 +64,7 @@ SOURCES =  test_opt_h3dtabref.f \
   $(SRC)/Common/qleigen_trid.f \
   $(SRC)/Common/yrecursion.f \
   $(SRC)/Common/quadintrouts2.f \
+  $(SRC)/Common/quadintrouts.f \
   $(SRC)/Common/voltab3d.f \
   $(SRC)/Helmholtz/lommel.f \
   $(SRC)/Helmholtz/h3dtab.f \
