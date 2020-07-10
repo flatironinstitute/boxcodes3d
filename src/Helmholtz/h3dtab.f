@@ -1098,25 +1098,23 @@ cc      call prinf("Starting adap quad for near*",i,0)
 
       zpars(1) = zk
 
-      nbatches = 4
+      nbatches = 24
       nttpcore = ceiling((ntarg_n+0.0d0)/nbatches)
+      ntt = 1
 
       t1 = second()
 C$       t1 = omp_get_wtime()  
-C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,istart,iend,ntt)
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
 c$OMP& SCHEDULE(DYNAMIC)      
-      do i=1,nbatches
-        istart = (i-1)*nttpcore+1
-        iend = min(i*nttpcore,ntarg_n)
-        ntt = iend-istart+1
+      do i=1,ntarg_n
 
         call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
-     1     xyztarg_near(1,istart),nquadmax,h3d_slp,dpars,zpars,ipars,
-     2     nqorder,slp_near(1,istart))
+     1     xyztarg_near(1,i),nquadmax,h3d_slp,dpars,zpars,ipars,
+     2     nqorder,slp_near(1,i))
 
         call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
-     1     xyztarg_near(1,istart),nquadmax,h3d_dlp,dpars,zpars,ipars,
-     2     nqorder,dlp_near(1,istart))
+     1     xyztarg_near(1,i),nquadmax,h3d_dlp,dpars,zpars,ipars,
+     2     nqorder,dlp_near(1,i))
       enddo
 C$OMP END PARALLEL DO      
       t2 = second()

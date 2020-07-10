@@ -568,7 +568,6 @@ c
             xkernvals(jj) = fval*qwts(jj)
           enddo
 
-          nfunev = nfunev + kfine
 
 c
 cc         subtract contribution of current quad

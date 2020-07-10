@@ -3,7 +3,7 @@ EXEC = int2-opt-h3dtabref
 
 HOST = osx
 #HOST=linux-gfortran
-#HOST=linux-gfortran-openmp
+HOST=linux-gfortran-openmp
 #HOST=linux-gfortran-debug
 
 ifeq ($(HOST),osx)
@@ -63,7 +63,7 @@ SOURCES =  test_opt_h3dtabref.f \
   $(SRC)/Common/csvdpiv.f \
   $(SRC)/Common/qleigen_trid.f \
   $(SRC)/Common/yrecursion.f \
-  $(SRC)/Common/quadintrouts.f \
+  $(SRC)/Common/quadintrouts2.f \
   $(SRC)/Common/voltab3d.f \
   $(SRC)/Helmholtz/lommel.f \
   $(SRC)/Helmholtz/h3dtab.f \
