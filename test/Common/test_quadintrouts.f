@@ -26,7 +26,7 @@
 
 
       norder = 8
-      npols = norder*norder
+      npols = (norder+1)*norder/2
       
       ntarg = 3
 
