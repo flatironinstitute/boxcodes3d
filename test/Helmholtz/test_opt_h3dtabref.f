@@ -1,9 +1,11 @@
       implicit real *8 (a-h,o-z)
-      real *8 tts(3,3),errm_rel1(3),errm_rel2(3),errm_abs(3)
+      real *8 tts(3,3,2),errm_rel1(3,2),errm_rel2(3,2),errm_abs(3,2)
+      real *8 tt3d(3),err_print(3)
       complex *16 zk, im, zero, one
-      complex *16, allocatable :: tab_ref(:,:),tab(:,:)
+      complex *16, allocatable :: tab_ref(:,:),tab(:,:),tab2(:,:)
       logical ifsphere
       character type
+      character *2 arg_comm
 
       character *100 fname
       data im / (0.0d0,1.0d0) /
@@ -13,27 +15,31 @@
       call prini(6,13)
       
 
-      izk = 1
+      call get_command_argument(1,arg_comm)
+      read(arg_comm,*) iprec
 
+      call get_command_argument(2,arg_comm)
+      read(arg_comm,*) ndeg
 
-
-
-      ndeg = 11
       n = ndeg + 1
 
       type = 't'
       call legetens_npol_3d(ndeg,type,npol3)
 
+      if(iprec.eq.0) tol = 1.0d-2
+      if(iprec.eq.1) tol = 1.0d-3
+      if(iprec.eq.2) tol = 1.0d-6
+      if(iprec.eq.3) tol = 1.0d-9
+      if(iprec.eq.4) tol = 1.0d-12
+
       npt = n**3
 
       ntarg0 = 10*npt
 
-      print *, ndeg,ntarg0,npol3
-
-      tol = 1.0d-6
 
 
       allocate(tab_ref(ntarg0,npol3),tab(ntarg0,npol3))
+      allocate(tab2(ntarg0,npol3))
 
 c
 c
@@ -58,24 +64,42 @@ c
           if(izk.eq.1) zk = 1.6d0
           if(izk.eq.2) zk = 0.16d0
           if(izk.eq.3) zk = im*1.6d0
-          write(fname,'(a,i2.2,a,i1,a)') 'tabref_',n,'_izk_',izk,'.dat'
-          open(unit=33,file=trim(fname))
+          write(fname,'(a,i2.2,a,i1,a)') 'tabref_',n,'_izk_',izk,
+     1       'new.dat'
+          open(unit=33,file=trim(fname),action='readwrite',
+     1       form='unformatted',access='stream')
+          read(unit=33) tab_ref
 
+          print *, "done reading"
 
-          do i=1,npol3
-            do j=1,ntarg0
-              read(33,*) tmp1,tmp2
-              tab_ref(j,i) = tmp1+im*tmp2
-            enddo
-          enddo
+          close(33)
 
           ifsphere = .true.
           if(ifsphere) ndeg2 = 20
           if(.not.ifsphere) ndeg2 = ndeg
+          
+          iflg = 1
 
           call h3dtabp_ref2(ndeg,zk,tol,tab,ntarg0,ifsphere,ndeg2,
-     1      tts(1,izk),tts(2,izk),tts(3,izk))
+     1      iflg,tts(1,izk,iflg),tts(2,izk,iflg),tts(3,izk,iflg))
+          
+          
+          iflg = 2
+
+          call h3dtabp_ref2(ndeg,zk,tol,tab,ntarg0,ifsphere,ndeg2,
+     1      iflg,tts(1,izk,iflg),tts(2,izk,iflg),tts(3,izk,iflg))
+          print *, "Done with 2d adap quad"
         
+          call prin2('tts iflg1=*',tts(1,izk,1),3)
+          call prin2('tts iflg2=*',tts(1,izk,2),3)
+
+          call cpu_time(t1)
+C$           t1 = omp_get_wtime()          
+          call h3dtabp_ref_brute_new(ndeg,zk,tol,tab2,ntarg0)
+          call cpu_time(t2)
+C$           t2 = omp_get_wtime()          
+cc     
+          print *, "done with 3d adap quad"
           errmax1 = 0
           errmax2 = 0
           errmaxa = 0
@@ -98,18 +122,72 @@ c
             enddo
           enddo
 
-          call prin2('max error=*',errmax1,1)
-          errm_rel1(izk) = errmax1
-          errm_rel2(izk) = errmax2
-          errm_abs(izk) = errmaxa/rmax
-          call prin2('time taken=*',tts,3)
-          close(33)
-        enddo
+          errm_rel1(izk,1) = errmax1
+          errm_rel2(izk,1) = errmax2
+          errm_abs(izk,1) = errmaxa/rmax
+          err_print(1) = errmax1
+          err_print(2) = errmax2
+          err_print(3) = errmaxa/rmax
 
-        call prin2('max errors relative 1=*',errm_rel1,3)
-        call prin2('max errors relative 2=*',errm_rel2,3)
-        call prin2('max errors absolute=*',errm_abs,3)
-        call prin2('time taken=*',tts,9)
+          call prin2(' *',i,0)
+          call prin2(' *',i,0)
+          call prin2('2d anti helmholtzian*',i,0)
+          call prin2(' *',i,0)
+          call prin2(' *',i,0)
+          call prin2('max errors=*',err_print,3)
+          call prin2('time taken=*',tts(:,izk,:),6)
+
+
+          errmax1 = 0
+          errmax2 = 0
+          errmaxa = 0
+          rmax = 0
+          do i=1,npol3
+            do j=npt+1,ntarg0
+             ra = max(abs(tab_ref(j,i)),1.0d0)
+             erra = abs(tab2(j,i)-tab_ref(j,i))/ra
+             if(erra.gt.errmax1) errmax1 = erra
+
+             
+             erra = abs(tab2(j,i)-tab_ref(j,i))/abs(tab_ref(j,i))
+             if(erra.gt.errmax2) errmax2 = erra
+
+
+             erra = abs(tab2(j,i)-tab_ref(j,i))
+             if(erra.gt.errmaxa) errmaxa = erra
+             ra = abs(tab_ref(j,i))
+             if(ra.gt.rmax) rmax = ra
+            enddo
+          enddo
+
+          call prin2(' *',i,0)
+          call prin2(' *',i,0)
+          call prin2('3d adap integration comp*',i,0)
+          call prin2(' *',i,0)
+          call prin2(' *',i,0)
+          errm_rel1(izk,2) = errmax1
+          errm_rel2(izk,2) = errmax2
+          errm_abs(izk,2) = errmaxa/rmax
+          err_print(1) = errmax1
+          err_print(2) = errmax2
+          err_print(3) = errmaxa/rmax
+          call prin2('max error=*',err_print,3)
+          tt3d(izk) = t2-t1
+          call prin2('time taken=*',tt3d(izk),1)
+
+ 1111     continue          
+        enddo
+        call prin2(' *',i,0)
+        call prin2(' *',i,0)
+        call prin2('results summary:*',i,0)
+        call prin2(' *',i,0)
+        call prin2(' *',i,0)
+
+        call prin2('max errors relative 1=*',errm_rel1,6)
+        call prin2('max errors relative 2=*',errm_rel2,6)
+        call prin2('max errors absolute=*',errm_abs,6)
+        call prin2('time taken 2d=*',tts(:,2,:),6)
+        call prin2('time taken 3d adap=*',tt3d,3)
         stop
       endif
 
@@ -124,7 +202,7 @@ c
 c
       
       subroutine h3dtabp_ref2(ndeg,zk,tol,tab,ldtab,ifsphere,ndeg2,
-     1   tpat,tlpadap,tlpspr)
+     1   iflg,tpat,tlpadap,tlpspr)
 c
 c     generate the Helmholtz potential table at the reference
 c     points
@@ -140,6 +218,10 @@ c     tol - tolerance for error in table entries
 c     ldtab - integer, leading dimension of the output table
 c     ifsphere - whether to use spherical polynomials          
 c     ndeg2 - order used in adaptive integration
+c     iflg - flag for determining which version of adaptive
+c              integration to use
+c            if iflg = 1, one with precomputation is used
+c            if iflg = 2, one without precomputation is used
           
           
 c
@@ -171,6 +253,7 @@ c     local
       real *8, allocatable :: x(:,:), w(:), pols(:), v(:,:)
       real *8 u, pi4
       integer ldu, ldv
+      integer iflg
       
       complex *16 zero, im, one
       complex *16, allocatable :: tabtemp(:,:), ahc(:,:), zv(:,:)
@@ -266,8 +349,8 @@ C$      t1 = omp_get_wtime()
       allocate(slp_pots(npol2,ntarg),dlp_pots(npol2,ntarg))
       allocate(tabtemp(ntarg0,npol3))
 
-      call h3d_facelayerpot_eval(tol,zk,ndeg,ndeg2,type,slp_pots,
-     1  dlp_pots,npol2)
+      call h3d_facelayerpot_eval_new(tol,zk,ndeg,ndeg2,type,iflg,
+     1     slp_pots,dlp_pots,npol2)
 
       do ii = 1,npol3
          do jj = npt+1,ntarg0

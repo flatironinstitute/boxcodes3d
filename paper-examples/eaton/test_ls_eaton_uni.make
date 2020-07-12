@@ -4,8 +4,9 @@ EXEC = int2-fmm
 #HOST = osx
 #HOST=linux-gfortran
 #HOST=linux-ifort
-#HOST=linux-gfortran-prof
-HOST=linux-gfortran-openmp
+HOST=linux-gfortran-prof
+HOST=linux-gfortran-debug
+#HOST=linux-gfortran-openmp
 
 ifeq ($(HOST),osx)
 FC = gfortran
@@ -28,6 +29,13 @@ FLINK = gfortran -w -o $(EXEC) -pg
 FEND = -lblas -llapack
 endif
 
+ifeq ($(HOST),linux-gfortran-debug)
+FC = gfortran
+FFLAGS = -g -c -w  
+FLINK = gfortran -w -o $(EXEC)
+FEND = -lblas -llapack
+endif
+
 ifeq ($(HOST),linux-gfortran-openmp)
 FC = gfortran
 FFLAGS = -fPIC -O3 -march=native -c --openmp
@@ -45,15 +53,14 @@ endif
 
 
 SRC = ../../src
-FMM3D = ../../../FMM3D/src
-UTILS_DIR = ../../../utils
+FMM3D = ~/FMM3D/src
 
 
 .PHONY: all clean list
 
-SOURCES =  test_ls_solver.f \
+SOURCES =  test_ls_eaton_uni.f \
   $(SRC)/Common/prini_new.f \
-  $(UTILS_DIR)/legeexps.f \
+  $(FMM3D)/Common/legeexps.f \
   $(SRC)/Common/tree_vol.f \
   $(SRC)/Common/legetens.f \
   $(SRC)/Common/voltab3d.f \
@@ -88,10 +95,13 @@ SOURCES =  test_ls_solver.f \
   $(FMM3D)/Helmholtz/hwts3e.f \
   $(FMM3D)/Helmholtz/hnumphys.f \
   $(FMM3D)/Helmholtz/hnumfour.f \
-  $(UTILS_DIR)/hkrand.f \
-  $(UTILS_DIR)/dlaran.f \
+  $(FMM3D)/Common/hkrand.f \
+  $(FMM3D)/Common/dlaran.f \
   $(SRC)/Common/aquad.f \
   $(SRC)/Common/cerf.f90 \
+  eaton.f prolcrea.f proquadr.f \
+  orthom.f nrleastsq.f nonsym_eigvals.f corrand.f qrsolve.f \
+  qerrfun.f
 
 ifeq ($(WITH_SECOND),1)
 SOURCES += $(SRC)/second-r8.f

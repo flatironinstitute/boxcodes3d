@@ -683,13 +683,6 @@ c
       rscale2 = bs2**eta
 
 
-      if(real(zk)*boxsize.gt.5) then
-        do i=1,nbloc
-          irefinebox(i) = 1
-        enddo
-        goto 1000
-      endif
-
 
 
 C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,ibox,xyz,err)
@@ -728,7 +721,6 @@ c
       enddo
 C$OMP END PARALLEL DO     
 
- 1000 continue
       
       irefine = maxval(irefinebox(1:nbloc))
 

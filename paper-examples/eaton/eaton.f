@@ -309,3 +309,131 @@ c
 
       return
       end
+
+
+
+      subroutine eaton_pre(a,b,w,lenw,nlege)
+      implicit real *8 (a-h,o-z)
+      real *8 a,b,w(*)
+      integer lenw, nlege
+c
+c     form fast eaton lens evaluator (not smooth)
+c
+c
+c     input
+c
+c     a - support of eaton lens
+c     b - maximum of eaton lens (cut off)
+c     lenw - length of array w
+c     nlege - number of legendre nodes to use in
+c             transition region
+c
+c     output
+c
+c     w - work array storing everything needed to evaluate
+c       eaton lens to high precision
+c     
+
+      real *8, allocatable :: u(:,:),v(:,:),xs(:),wt(:),f(:),coeff(:)
+
+      w(1) = a
+      w(2) = b
+
+c     find point where it transitions
+
+      nbis = 50
+
+      r1 = 0.0d0
+      r2 = a
+
+      do i = 1,nbis
+         rb = (r1+r2)/2
+         call eaton(rb,a,b,val0)
+         if (val0 .lt. b) then
+            r2 = rb
+         else
+            r1 = rb
+         endif
+      enddo
+
+      call prin2('b-val at rb *',b-val0,1)
+      call prin2('rb *',rb,1)
+
+      w(3) = rb
+
+c     fit lege polynomial in transition region
+
+      allocate(u(nlege,nlege),v(nlege,nlege),xs(nlege),wt(nlege),
+     1     f(nlege),coeff(nlege))
+      itype = 2
+      call legeexps(itype,nlege,xs,u,v,wt)
+
+      do i = 1,nlege
+         r = rb + (xs(i)+1)*(a-rb)/2.0d0
+         call eaton(r,a,b,f(i))
+      enddo
+
+      do i = 1,nlege
+         coeff(i) = 0.0d0
+      enddo
+      do i = 1,nlege
+         do j = 1,nlege
+            coeff(j) = coeff(j) + u(j,i)*f(i)
+         enddo
+      enddo
+
+      icoeff = 6
+
+      w(4) = nlege + 0.1d0
+      w(5) = icoeff + 0.1d0
+
+      do i = 1,nlege
+         w(icoeff+i-1) = coeff(i)
+      enddo
+      
+      return
+      end
+
+      subroutine eaton_post(r,w,val)
+      implicit real *8 (a-h,o-z)
+      real *8 rs, val, w(*)
+c
+c     must follow a call to eaton_pre
+c
+c     evaluate the q function for the eaton lens using
+c     the precomputed piecewise approximation
+c
+c     input:
+c
+c     r - point to evaluate at
+c     w - array output of eaton_pre
+c
+c     output:
+c
+c     val -  value eaton q function at given
+c         points
+c     
+
+      a = w(1)
+      b = w(2)
+      rb = w(3)
+      nlege = w(4)
+      icoeff = w(5)
+
+      nord = nlege-1
+      
+      if (r .lt. rb) then
+         val = b
+         return
+      endif
+      if (r .gt. a) then
+         val = 0.0d0
+         return
+      endif
+      
+      t = (r-rb)*2.0d0/(a-rb)-1.0d0
+      call legeexev(t,val,w(icoeff),nord)
+      
+      return
+      end
+      
