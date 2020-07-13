@@ -67,6 +67,7 @@ SOURCES =  test_helm_volfmm3d.f \
   $(SRC)/Common/qleigen_trid.f \
   $(SRC)/Common/yrecursion.f \
   $(SRC)/Common/quadintrouts.f \
+  $(SRC)/Common/quadintrouts2.f \
   $(SRC)/Common/loadsyms3d.f \
   $(SRC)/Common/squarearbq.f \
   $(SRC)/Common/zerrf.f \
@@ -79,6 +80,7 @@ SOURCES =  test_helm_volfmm3d.f \
   $(FMM3D)/Common/rotproj.f \
   $(FMM3D)/Common/besseljs3d.f \
   $(FMM3D)/Common/fmmcommon.f \
+  $(FMM3D)/Common/tree_lr_3d.f \
   $(FMM3D)/Common/rotgen.f \
   $(FMM3D)/Common/dfft.f \
   $(FMM3D)/Helmholtz/h3dcommon.f \
