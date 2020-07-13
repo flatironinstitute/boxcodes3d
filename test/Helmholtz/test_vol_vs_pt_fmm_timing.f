@@ -1,5 +1,23 @@
+      implicit real *8 (a-h,o-z)
+      complex *16 zk
+
+      zk = 1.2d0
+      iprec = 2
+      norder = 4
+      
+      
+      call get_fmm_timing(zk,iprec,icase,norder,tvtree,tvpre,tvol,
+     1   tfmm,errvfmm,errpfmm)
+
+      
+
+      stop
+      end
+      
+      
+      
       subroutine get_fmm_timing(zk,iprec,icase,norder,tvtree,tvpre,tvol,
-     1   tfmm)
+     1   tfmm,errvfmm,errpfmm)
       implicit real *8 (a-h,o-z)
       real *8 dpars(1000)
       integer iptr(9)
@@ -14,7 +32,7 @@ c       point fmm variables
 c
       real *, allocatable :: sources(:,:)
       complex *16, allocatable :: charges(:)
-      complex *16, allocatable :: potfmm(:)
+      complex *16, allocatable :: potfmm(:),potfmmex(:)
       complex *16 zk,zpars
 
       complex *16, allocatable :: pot(:,:),potex(:,:)
@@ -221,8 +239,30 @@ c
         enddo
 
         erra = sqrt(erra/ra)
-        call prin2('erra=*',erra,1)
-        call prin2('ra=*',ra,1)
+        call prin2('erra vol fmm=*',erra,1)
+        
+        errvfmm = erra
+       
+
+c
+c         test accuracy at 10 targets 
+c
+        ntest = 10
+        allocate(potfmmex(ntest))
+        call h3ddirectcp(1,zk,sources,charges,ns,sources,ntest,
+     1     potfmmex)
+
+        erra = 0
+        ra = 0
+        do i=1,ntest
+          ra = ra + abs(potfmmex(i))**2
+          erra = erra + abs(potfmm(i)-potfmmex(i))**2
+        enddo
+        erra = sqrt(erra/ra)
+        call prin2('erra pt fmm=*',erra,1)
+        errpfmm = erra
+
+
       endif
 
       return
