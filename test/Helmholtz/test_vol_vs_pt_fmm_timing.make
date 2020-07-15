@@ -2,45 +2,13 @@
 EXEC = int2-fmm
 
 HOST = osx
-#HOST=linux-gfortran
-#HOST=linux-ifort
-#HOST=linux-gfortran-prof
-#HOST=linux-gfortran-openmp
+HOST=linux-gfortran
 
-ifeq ($(HOST),osx)
 FC = gfortran
-FFLAGS = -fPIC -O3 -march=native --openmp -c -w
-FLINK = gfortran -w --openmp -o $(EXEC)
-FEND = -lopenblas ${LDFLAGS}
-endif
-
-ifeq ($(HOST),linux-gfortran)
-FC = gfortran
-FFLAGS = -fPIC -O3 -march=native -c -w  
-FLINK = gfortran -w -o $(EXEC) 
-FEND = -lopenblas -L/usr/local/opt/openblas/lib 
-endif
-
-ifeq ($(HOST),linux-gfortran-prof)
-FC = gfortran
-FFLAGS = -fPIC -O3 -march=native -pg -g -funroll-loops -ftree-vectorize -ffast-math -c -w  
-FLINK = gfortran -w -o $(EXEC) -pg
-FEND = -lblas -llapack
-endif
-
-ifeq ($(HOST),linux-gfortran-openmp)
-FC = gfortran
-FFLAGS = -fPIC -O3 -march=native -c --openmp
-FLINK = gfortran -w --openmp -o $(EXEC) 
-FEND = -lopenblas -L/usr/local/opt/openblas/lib 
-endif
-
-ifeq ($(HOST),linux-ifort)
-FC = ifort
-FFLAGS = -fPIC -O1 -g -c -w -xW -qopenmp 
-FLINK = ifort -w -qopenmp -o $(EXEC)
-WITH_SECOND = 1
-endif
+FFLAGS = -fPIC -O3 -lstdc++ -march=native -fopenmp -funroll-loops
+CXXFLAGS = -std=c++11 -lstdc++ -DSCTL_PROFILE=-1 -fPIC -O3 -march=native -fopenmp -funroll-loops -I../../../FMM3D/vec-kernels/include 
+FLINK = gfortran -w -fopenmp -o $(EXEC)
+FEND = -lopenblas ${LDFLAGS} -lstdc++
 
 
 SRC = ../../src
@@ -50,73 +18,84 @@ UTILS_DIR = ../../../utils
 
 .PHONY: all clean list
 
-SOURCES =  test_helm_volfmm3d.f \
-  $(SRC)/Common/prini_new.f \
-  $(UTILS_DIR)/legeexps.f \
-  $(SRC)/Common/tree_vol.f \
-  $(SRC)/Common/legetens.f \
-  $(SRC)/Common/voltab3d.f \
-  $(SRC)/Helmholtz/h3dvol.f \
-  $(SRC)/Helmholtz/h3dtab.f \
-  $(SRC)/Helmholtz/lommel.f \
-  $(SRC)/Helmholtz/helm_volfmm3d.f \
-  $(SRC)/Common/sphere_pol_routs.f \
-  $(SRC)/Common/ncleastsq.f \
-  $(SRC)/Common/svdpivot.f \
-  $(SRC)/Common/csvdpiv.f \
-  $(SRC)/Common/qleigen_trid.f \
-  $(SRC)/Common/yrecursion.f \
-  $(SRC)/Common/quadintrouts.f \
-  $(SRC)/Common/quadintrouts2.f \
-  $(SRC)/Common/loadsyms3d.f \
-  $(SRC)/Common/squarearbq.f \
-  $(SRC)/Common/zerrf.f \
-  $(FMM3D)/Helmholtz/hfmm3d.f \
-  $(FMM3D)/Helmholtz/hfmm3dwrap.f \
-  $(FMM3D)/Helmholtz/helmkernels.f \
-  $(FMM3D)/Helmholtz/hndiv.f \
-  $(FMM3D)/Helmholtz/hpwrouts.f \
-  $(FMM3D)/Helmholtz/h3dtrans.f \
-  $(FMM3D)/Helmholtz/h3dterms.f \
-  $(FMM3D)/Helmholtz/helmrouts3d.f \
-  $(FMM3D)/Helmholtz/projections.f \
-  $(FMM3D)/Common/rotviarecur.f \
-  $(FMM3D)/Common/rotproj.f \
-  $(FMM3D)/Common/besseljs3d.f \
-  $(FMM3D)/Common/tree_lr_3d.f \
-  $(FMM3D)/Common/fmmcommon.f \
-  $(FMM3D)/Common/rotgen.f \
-  $(FMM3D)/Common/dfft.f \
-  $(FMM3D)/Helmholtz/h3dcommon.f \
-  $(FMM3D)/Helmholtz/hwts3e.f \
-  $(FMM3D)/Helmholtz/hnumphys.f \
-  $(FMM3D)/Helmholtz/hnumfour.f \
-  $(UTILS_DIR)/hkrand.f \
-  $(UTILS_DIR)/dlaran.f \
-  $(SRC)/Common/aquad.f \
-  $(SRC)/Common/cerf.f90 \
+OBJECTS =  test_vol_vs_pt_fmm_timing.o \
+  $(SRC)/Common/prini_new.o \
+  $(UTILS_DIR)/legeexps.o \
+  $(SRC)/Common/tree_vol.o \
+  $(SRC)/Common/legetens.o \
+  $(SRC)/Common/voltab3d.o \
+  $(SRC)/Helmholtz/h3dvol.o \
+  $(SRC)/Helmholtz/h3dtab.o \
+  $(SRC)/Helmholtz/lommel.o \
+  $(SRC)/Helmholtz/helm_volfmm3d.o \
+  $(SRC)/Common/sphere_pol_routs.o \
+  $(SRC)/Common/ncleastsq.o \
+  $(SRC)/Common/svdpivot.o \
+  $(SRC)/Common/csvdpiv.o \
+  $(SRC)/Common/qleigen_trid.o \
+  $(SRC)/Common/yrecursion.o \
+  $(SRC)/Common/quadintrouts.o \
+  $(SRC)/Common/quadintrouts2.o \
+  $(SRC)/Common/loadsyms3d.o \
+  $(SRC)/Common/squarearbq.o \
+  $(SRC)/Common/zerrf.o \
+  $(FMM3D)/Helmholtz/hfmm3d.o \
+  $(FMM3D)/Helmholtz/hfmm3dwrap.o \
+  $(FMM3D)/Helmholtz/hpwrouts.o \
+  $(FMM3D)/Helmholtz/h3dtrans.o \
+  $(FMM3D)/Helmholtz/h3dterms.o \
+  $(FMM3D)/Helmholtz/helmrouts3d.o \
+  $(FMM3D)/Helmholtz/projections.o \
+  $(FMM3D)/Common/rotviarecur.o \
+  $(FMM3D)/Common/rotproj.o \
+  $(FMM3D)/Common/besseljs3d.o \
+  $(FMM3D)/Common/tree_lr_3d.o \
+  $(FMM3D)/Common/fmmcommon.o \
+  $(FMM3D)/Common/rotgen.o \
+  $(FMM3D)/Common/dfft.o \
+  $(FMM3D)/Helmholtz/h3dcommon.o \
+  $(FMM3D)/Helmholtz/hwts3e.o \
+  $(FMM3D)/Helmholtz/hnumphys.o \
+  $(FMM3D)/Helmholtz/hnumfour.o \
+  $(UTILS_DIR)/hkrand.o \
+  $(UTILS_DIR)/dlaran.o \
+  $(SRC)/Common/aquad.o \
+  $(SRC)/Common/cerf.o \
+
 
 ifeq ($(WITH_SECOND),1)
-SOURCES += $(SRC)/second-r8.f
+OBJECTS += $(SRC)/second-r8.o
 endif
 
-OBJECTS = $(patsubst %.f,%.o,$(patsubst %.f90,%.o,$(SOURCES)))
+ifeq ($(FAST_KER), ON)
+  OBJECTS += $(FMM3D)/Helmholtz/helmkernels_fast.o
+  OBJECTS += $(FMM3D)/Helmholtz/hndiv_fast.o
+  OBJECTS += $(FMM3D)/../vec-kernels/src/libkernels.o
+endif
+
+ifneq ($(FAST_KER), ON)
+  OBJECTS += $(FMM3D)/Helmholtz/helmkernels.o
+  OBJECTS += $(FMM3D)/Helmholtz/hndiv.o
+endif
 
 #
 # use only the file part of the filename, then manually specify
 # the build location
 #
 
-%.o : %.f
-	$(FC) $(FFLAGS) $< -o $@
-
+%.o: %.cpp %.h
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+%.o: %.c %.h
+	$(CC) -c $(CFLAGS) $< -o $@
+%.o : %.f %.h
+	$(FC) -c $(FFLAGS) $< -o $@
 %.o : %.f90
-	$(FC) $(FFLAGS) $< -o $@
+	$(FC) -c $(FFLAGS) $< -o $@
 
 all: $(OBJECTS)
 	rm -f $(EXEC)
 	$(FLINK) $(OBJECTS) $(FEND)
-	./$(EXEC) 2 
+	./$(EXEC) 1 4 3 
 
 clean:
 	rm -f $(OBJECTS)

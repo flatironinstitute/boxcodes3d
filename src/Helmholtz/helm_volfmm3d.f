@@ -1354,7 +1354,6 @@ C$        time2=omp_get_wtime()
 
 
 
-
 c
 c
 c       step  evaluate local expansions
