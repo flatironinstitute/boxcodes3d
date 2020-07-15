@@ -9,21 +9,21 @@ HOST = osx
 
 ifeq ($(HOST),osx)
 FC = gfortran
-FFLAGS = -O3 -march=native --openmp -funroll-loops -c -w
+FFLAGS = -fPIC -O3 -march=native --openmp -c -w
 FLINK = gfortran -w --openmp -o $(EXEC)
 FEND = -lopenblas ${LDFLAGS}
 endif
 
 ifeq ($(HOST),linux-gfortran)
 FC = gfortran
-FFLAGS = -fPIC -O3 -march=native -funroll-loops -c -w  
+FFLAGS = -fPIC -O3 -march=native -c -w  
 FLINK = gfortran -w -o $(EXEC) 
 FEND = -lopenblas -L/usr/local/opt/openblas/lib 
 endif
 
 ifeq ($(HOST),linux-gfortran-prof)
 FC = gfortran
-FFLAGS = -O3 -march=native -pg -g -funroll-loops -ftree-vectorize -ffast-math -c -w  
+FFLAGS = -fPIC -O3 -march=native -pg -g -funroll-loops -ftree-vectorize -ffast-math -c -w  
 FLINK = gfortran -w -o $(EXEC) -pg
 FEND = -lblas -llapack
 endif
@@ -37,7 +37,7 @@ endif
 
 ifeq ($(HOST),linux-ifort)
 FC = ifort
-FFLAGS = -O1 -g -c -w -xW -qopenmp 
+FFLAGS = -fPIC -O1 -g -c -w -xW -qopenmp 
 FLINK = ifort -w -qopenmp -o $(EXEC)
 WITH_SECOND = 1
 endif
@@ -71,6 +71,10 @@ SOURCES =  test_helm_volfmm3d.f \
   $(SRC)/Common/loadsyms3d.f \
   $(SRC)/Common/squarearbq.f \
   $(SRC)/Common/zerrf.f \
+  $(FMM3D)/Helmholtz/hfmm3d.f \
+  $(FMM3D)/Helmholtz/hfmm3dwrap.f \
+  $(FMM3D)/Helmholtz/helmkernels.f \
+  $(FMM3D)/Helmholtz/hndiv.f \
   $(FMM3D)/Helmholtz/hpwrouts.f \
   $(FMM3D)/Helmholtz/h3dtrans.f \
   $(FMM3D)/Helmholtz/h3dterms.f \
@@ -79,8 +83,8 @@ SOURCES =  test_helm_volfmm3d.f \
   $(FMM3D)/Common/rotviarecur.f \
   $(FMM3D)/Common/rotproj.f \
   $(FMM3D)/Common/besseljs3d.f \
-  $(FMM3D)/Common/fmmcommon.f \
   $(FMM3D)/Common/tree_lr_3d.f \
+  $(FMM3D)/Common/fmmcommon.f \
   $(FMM3D)/Common/rotgen.f \
   $(FMM3D)/Common/dfft.f \
   $(FMM3D)/Helmholtz/h3dcommon.f \
