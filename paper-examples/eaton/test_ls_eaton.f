@@ -16,8 +16,8 @@
       complex *16, allocatable :: potcoef(:,:), pottest(:)
       complex *16, allocatable :: pottestref(:), pot1(:), pot2(:),
      1     pot3(:)
-      complex *16, allocatable :: rhscoef(:,:), rhs1(:), rhs2(:),
-     1     rhs3(:)
+      complex *16, allocatable :: beamcoef(:,:), beam1(:), beam2(:),
+     1     beam3(:), beamval(:,:)
       complex *16, allocatable :: qcoef(:,:), q1(:), q2(:),
      1     q3(:)
       
@@ -149,7 +149,7 @@ c     plotting parameters
       nplot2 = nplot**2
       allocate(pts1(3,nplot2),pts2(3,nplot2),pts3(3,nplot2))
       allocate(pot1(nplot2),pot2(nplot2),pot3(nplot2))
-      allocate(rhs1(nplot2),rhs2(nplot2),rhs3(nplot2))
+      allocate(beam1(nplot2),beam2(nplot2),beam3(nplot2))
       allocate(q1(nplot2),q2(nplot2),q3(nplot2))
 
       h = boxlen/nplot
@@ -240,12 +240,13 @@ C$      t2 = omp_get_wtime()
 
       print *, "done building tree"
       allocate(qval(npbox,nboxes),uval(npbox,nboxes),
-     1    rhsval(npbox,nboxes))
+     1    rhsval(npbox,nboxes),beamval(npbox,nboxes))
       do i=1,nboxes
         do j=1,npbox
           qval(j,i) = fvals(1,j,i)
           rhsval(j,i) = -zk**2*qval(j,i)*
      1         (fvals(2,j,i) + ima*fvals(3,j,i))
+          beamval(j,i) = (fvals(2,j,i) + ima*fvals(3,j,i))
         enddo
       enddo
 
@@ -307,24 +308,24 @@ c     print incident wave to file for plotting
       ndeg = norder-1
       call legetens_npol_3d(ndeg,ttype,ncbox)
       write(*,*) 'NCBOX ',ncbox
-      allocate(rhscoef(ncbox,nboxes),qcoef(ncbox,nboxes))
+      allocate(beamcoef(ncbox,nboxes),qcoef(ncbox,nboxes))
 
       write(*,*) 'printing incident wave plot and q plot to file ...'
       
       ndz=2
-      call vol_tree_coef(nboxes,norder,ttype,rhsval,ndz,npbox,rhscoef,
+      call vol_tree_coef(nboxes,norder,ttype,beamval,ndz,npbox,beamcoef,
      1     ncbox)
       call vol_tree_coef(nboxes,norder,ttype,qval,ndz,npbox,qcoef,
      1     ncbox)
       write(*,*) 'after coefs'
-      call vol_tree_eval(norder,ttype,ndz,ncbox,rhscoef,nlevels,nboxes,
-     1     itree,iptr,centers,boxsize,pts1,nplot2,rhs1)
+      call vol_tree_eval(norder,ttype,ndz,ncbox,beamcoef,nlevels,nboxes,
+     1     itree,iptr,centers,boxsize,pts1,nplot2,beam1)
 
-      call vol_tree_eval(norder,ttype,ndz,ncbox,rhscoef,nlevels,nboxes,
-     1     itree,iptr,centers,boxsize,pts2,nplot2,rhs2)
+      call vol_tree_eval(norder,ttype,ndz,ncbox,beamcoef,nlevels,nboxes,
+     1     itree,iptr,centers,boxsize,pts2,nplot2,beam2)
       
-      call vol_tree_eval(norder,ttype,ndz,ncbox,rhscoef,nlevels,nboxes,
-     1     itree,iptr,centers,boxsize,pts3,nplot2,rhs3)
+      call vol_tree_eval(norder,ttype,ndz,ncbox,beamcoef,nlevels,nboxes,
+     1     itree,iptr,centers,boxsize,pts3,nplot2,beam3)
 
       call vol_tree_eval(norder,ttype,ndz,ncbox,qcoef,nlevels,nboxes,
      1     itree,iptr,centers,boxsize,pts1,nplot2,q1)
@@ -337,8 +338,8 @@ c     print incident wave to file for plotting
 
       
       iunit = 104
-      call write3dsliceplotz(iunit,pts1,rhs1,pts2,rhs2,
-     1     pts3,rhs3,nplot2)
+      call write3dsliceplotz(iunit,pts1,beam1,pts2,beam2,
+     1     pts3,beam3,nplot2)
       close(104)
 
       iunit = 106
