@@ -244,7 +244,8 @@ C$      t2 = omp_get_wtime()
       do i=1,nboxes
         do j=1,npbox
           qval(j,i) = fvals(1,j,i)
-          rhsval(j,i) = fvals(2,j,i) + ima*fvals(3,j,i)
+          rhsval(j,i) = -zk**2*qval(j,i)*
+     1         (fvals(2,j,i) + ima*fvals(3,j,i))
         enddo
       enddo
 
@@ -562,7 +563,8 @@ C$       t2 = omp_get_wtime()
          do i=1,nboxes1
             do j=1,npbox
                qval(j,i) = fvals(1,j,i)
-               rhsval(j,i) = fvals(2,j,i) + ima*fvals(3,j,i)
+               rhsval(j,i) = -zk**2*qval(j,i)*
+     1              (fvals(2,j,i) + ima*fvals(3,j,i))
             enddo
          enddo
 

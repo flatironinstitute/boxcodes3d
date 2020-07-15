@@ -90,7 +90,8 @@ SOURCES =  test_ls_eaton.f \
   $(FMM3D)/Common/rotproj.f \
   $(FMM3D)/Common/besseljs3d.f \
   $(FMM3D)/Common/fmmcommon.f \
-  $(FMM3D)/Common/rotgen.f \
+  $(FMM3D)/Common/rotgen.f\
+  $(FMM3D)/Common/tree_lr_3d.f \
   $(FMM3D)/Common/dfft.f \
   $(FMM3D)/Helmholtz/h3dcommon.f \
   $(FMM3D)/Helmholtz/hwts3e.f \
