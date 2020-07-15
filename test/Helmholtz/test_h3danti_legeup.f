@@ -5,11 +5,11 @@ c$    use omp_lib
       real *8, allocatable :: dlap(:,:)
       
       complex *16, allocatable :: ahmat1(:,:), ahmat2(:,:), ahmat3(:,:)
-      complex *16, allocatable :: hmat(:,:)
+      complex *16, allocatable :: hmat(:,:), resnew2(:,:)
       complex *16, allocatable :: res1(:,:), res2(:,:), res3(:,:)
 
 
-      integer, allocatable :: ind2p(:,:), ind2pout(:,:)
+      integer, allocatable :: ind2p(:,:), ind2pout(:,:),ip2indout(:,:,:)
       
       real *8, allocatable :: sums1(:), sums2(:), sums3(:)
       
@@ -22,14 +22,14 @@ c$    use omp_lib
       call prini(6,13)
 
 
-      ndeg = 4
-      nup = 20
+      ndeg = 16
+      nup = 12
 
       ndegout = ndeg + nup*2
       
       type = 't'
 
-      rr = 5.5d0
+      rr = 2.5d0
       zk = rr*(1/sqrt(2.0d0) + im/sqrt(2.0d0))
 c      zk = rr
       
@@ -39,7 +39,8 @@ c      zk = rr
       call prinf('npol *',npol,1)
       call prinf('npolout *',npolout,1)
 
-      allocate(ind2p(3,npol),ind2pout(3,npolout))
+      allocate(ind2p(3,npol),ind2pout(3,npolout),
+     1     ip2indout(0:ndegout,0:ndegout,0:ndegout))
 
       call legetens_ind2pow_3d(ndeg,type,ind2p)
       call legetens_ind2pow_3d(ndegout,type,ind2pout)      
@@ -62,23 +63,25 @@ c$    t2 = omp_get_wtime()
 
       write(*,*) 'time upward recurrence (fast?)', t2-t1
 
-      allocate(dlap(npolout,npolout),hmat(npolout,npolout),
-     1     res1(npolout,npol),res2(npolout,npol))
-      call legetens_lapmat_3d(ndegout,ndegout,type,dlap,npolout)      
-      
-      do i= 1,npolout
-         do j = 1,npolout
-            hmat(j,i) = dlap(j,i)
-            if (j .eq. i) hmat(j,i) = hmat(j,i) + zk**2
+      allocate(res1(npolout,npol),res2(npolout,npol))
+
+      call cpu_time(t1)
+c$    t1 = omp_get_wtime()      
+      do j = 1,npol
+         nd = 2
+         call legetens_lape_3d(nd,ndegout,type,ahmat1(1,j),res1(1,j))
+         call legetens_lape_3d(nd,ndegout,type,ahmat2(1,j),res2(1,j))
+         
+         do i = 1,npolout
+            res1(i,j) = res1(i,j) + ahmat1(i,j)*zk**2
+            res2(i,j) = res2(i,j) + ahmat2(i,j)*zk**2
          enddo
       enddo
+      call cpu_time(t2)
+c$    t2 = omp_get_wtime()            
       
-      alpha = one
-      beta = zero
-      call zgemm('N','N',npolout,npol,npolout,alpha,hmat,npolout,
-     1     ahmat1,npolout,beta,res1,npolout)
-      call zgemm('N','N',npolout,npol,npolout,alpha,hmat,npolout,
-     1     ahmat2,npolout,beta,res2,npolout)
+      write(*,*) 'time to test residuals', t2-t1
+
       
 c      call prin2('res 1 *',res1,npol*npol*2)
 c      call prin2('res 2 *',res2,npol*npol*2)
@@ -101,16 +104,14 @@ c      call prin2('res 2 *',res2,npol*npol*2)
             kout = ind2pout(3,j)
             if (iin .eq. iout .and. jin .eq. jout
      1           .and. kin .eq. kout) then
-               sums1(i) = sums1(i) + abs(one-res1(j,i))**2
-               sums2(i) = sums2(i) + abs(one-res2(j,i))**2
+               sums1(i) = sums1(i) + abs(one-res1(j,i))
+               sums2(i) = sums2(i) + abs(one-res2(j,i))
             else
-               sums1(i) = sums1(i) + abs(res1(j,i))**2
-               sums2(i) = sums2(i) + abs(res2(j,i))**2               
+               sums1(i) = sums1(i) + abs(res1(j,i))
+               sums2(i) = sums2(i) + abs(res2(j,i))               
             endif
          enddo
 
-         sums1(i) = sqrt(sums1(i))
-         sums2(i) = sqrt(sums2(i))
       enddo
 
       call prin2('zk *',zk,2)

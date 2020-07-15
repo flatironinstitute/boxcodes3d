@@ -56,9 +56,184 @@ c          iptr(7) - coll
 c          iptr(8) - ltree
 c
 
+      subroutine vol_tree_coef(nboxes,norder,type,fvals,nd,npbox,
+     1     fcoef,ncbox)
+c
+c     convert function values to coefficients for all boxes
+c     in a tree
+c
+c     input
+c
+c     nboxes - integer, number of boxes in tree
+c     nchild - integer array (nboxes), number of children per box
+c     norder - integer, approximation order of fvals
+c     type - character, set of polynomials to use. 'T' is total
+c        degree, 'F' is full degree.
+c     nd - integer, leading dimension of fvals (vector valued
+c        functions have nd > 1, can do complex with nd=2
+c     npbox - integer, second dimension of fvals. Should equal
+c        number of points in each box at the given approximation
+c        order
+c     fvals - real *8 (nd,npbox,nboxes) array of values at all
+c        points on tree
+c     ncbox - integer, second dimension of fcoef. should equal
+c        the number of polynomials in the basis for the values of
+c        type and norder above.
+      
+c
+c     output
+c
+c     fcoef - real *8 (nd,ncbox,nboxes) array of coefficients
+c     corresponding to fvals
+
+      implicit none
+      integer nboxes, norder, nd, npbox, ncbox
+      real *8 fvals(nd,npbox,*), fcoef(nd,ncbox,*)
+      character type
+c     local
+      integer ibox, itype
+      real *8 ra, rb, nrow, ncol, ninner
+      real *8, allocatable :: xref(:,:), umat(:,:), vmat(:,:), wts0(:)
+      
+      allocate(xref(3,npbox),umat(ncbox,npbox),vmat(npbox,ncbox),
+     1     wts0(npbox))
+
+      itype = 2
+      call legetens_exps_3d(itype,norder,type,xref,umat,ncbox,vmat,
+     1     npbox,wts0)
+      ra = 1.0d0
+      rb = 0.0d0
+      
+      do ibox = 1,nboxes
+         call dgemm('n','t',nd,ncbox,npbox,ra,fvals(1,1,ibox),
+     1        nd,umat,ncbox,rb,fcoef(1,1,ibox),nd)
+      enddo
+      
+      return
+      end
 
 
+      subroutine vol_tree_eval(norder,type,nd,ncbox,fcoef,nlevels,
+     1     nboxes,itree,iptr,centers,boxsize,pts,npts,fvals)
+c
+c
+c     evaluate function given by coefficients on tree leaves
+c
+c     input
+c
+c     norder - integer, order of approximation
+c     type - character, determines set of polynomials used. 't' gives
+c       total degree, 'f' full degree
+c     nd - integer, leading dimension of fcoef. allows for vector
+c       valued and complex f (setting nd=2)
+c     ncbox - integer, number of coefficients per box, should match
+c       number of polynomials in set for norder and type specified
+c     fcoef - real *8 (nd,ncbox,nboxes) coefficients
+c     nlevels - integer, number of levels in tree
+c     nboxes - integer, number of boxes in tree
+c     itree - integer array with tree structure
+c     iptr - integer array (8) pointing to locations of sub arrays in
+c       itree
+c     centers - real *8 (3,nboxes) array of box centers
+c     boxsize - real *8 (0:nlevels) array of box sizes per level
+c     pts - real *8 (3,npts) array of points to evaluate function
+c     npts - integer number of points to evaluate at
+c      
+c     output
+c
+c     fvals - real *8 (nd,npts) array of function values
+c
 
+      implicit none
+      integer norder, nd, ncbox, nlevels, nboxes, iptr(8), itree(*)
+      integer npts
+      character type
+      real *8 fcoef(nd,ncbox,nboxes), centers(3,nboxes),
+     1     boxsize(0:nlevels), pts(3,npts), fvals(nd,npts)
+c     local
+      integer inchild, iichild
+
+      inchild = iptr(4)
+      iichild = iptr(5)
+
+      call vol_tree_eval0(norder,type,nd,ncbox,fcoef,nlevels,
+     1     nboxes,itree(inchild),itree(iichild),centers,boxsize,pts,
+     2     npts,fvals)
+
+      
+
+      return
+      end
+
+      subroutine vol_tree_eval0(norder,type,nd,ncbox,fcoef,nlevels,
+     1     nboxes,nchild,ichild,centers,boxsize,pts,npts,
+     2     fvals)
+      implicit none
+      integer norder, nd, ncbox, nlevels, nboxes
+      integer npts, nchild(*), ichild(8,*)
+      character type
+      real *8 fcoef(nd,ncbox,nboxes), centers(3,nboxes),
+     1     boxsize(0:nlevels), pts(3,npts), fvals(nd,npts)
+
+c     local
+      integer i, j, ndeg, npol, k, ibox, ichild1
+      real *8 :: pt1(3), ctr(3), ptsc(3), bs
+      real *8, allocatable :: pols(:)
+
+      ndeg = norder-1
+      call legetens_npol_3d(ndeg,type,npol)
+
+      allocate(pols(npol))
+      
+      do i = 1,npts
+         pt1(1) = pts(1,i)
+         pt1(2) = pts(2,i)
+         pt1(3) = pts(3,i)
+
+c     find appropriate box
+         ibox = 1
+         ctr(1) = centers(1,ibox)
+         ctr(2) = centers(2,ibox)
+         ctr(3) = centers(3,ibox)
+         bs = boxsize(0)
+         
+         do j = 1,nlevels
+            if (nchild(ibox) .le. 0) exit
+            ichild1 = 1
+            if (pt1(1) .gt. ctr(1)) ichild1 = ichild1 + 1
+            if (pt1(2) .gt. ctr(2)) ichild1 = ichild1 + 2
+            if (pt1(3) .gt. ctr(3)) ichild1 = ichild1 + 4
+            ibox = ichild(ichild1,ibox)
+            bs = boxsize(j)
+            ctr(1) = centers(1,ibox)
+            ctr(2) = centers(2,ibox)
+            ctr(3) = centers(3,ibox)
+         enddo
+
+c     evaluate relative to this box
+         ptsc(1) = (pt1(1)-ctr(1))*2.0d0/bs
+         ptsc(2) = (pt1(2)-ctr(2))*2.0d0/bs
+         ptsc(3) = (pt1(3)-ctr(3))*2.0d0/bs
+
+         call legetens_pols_3d(ptsc,ndeg,type,pols)
+
+         do k = 1,nd
+            fvals(k,i) = 0.0d0
+         enddo
+         do j = 1,npol
+            do k = 1,nd
+               fvals(k,i) = fvals(k,i) + fcoef(k,j,ibox)*pols(j)
+            enddo
+         enddo
+      enddo
+            
+
+      return
+      end
+      
+      
+      
+      
       subroutine vol_tree_mem(eps,zk,boxlen,norder,iptype,eta,fun,nd,
      1  dpars,zpars,ipars,nlevels,nboxes,ltree,rintl)
 c

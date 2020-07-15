@@ -1166,3 +1166,97 @@ c
 c     
 c     
       
+
+
+      subroutine legetens_lape_3d(nd,ndeg,type,polin,polout)
+c
+c     compute the Laplacian of the input coefficients, returning
+c     in the output coefficients
+c
+c     input:
+c     
+c     nd - dimensionality of the coefficients
+c     polin(nd,*) - real *8 array. nd sets of tensor Legendre
+c       coefficients in the legetens ordering
+c     ndeg - integer, degree of polynomial basis
+c     type - character, 'T' gives total degree polynomials
+c       'F' gives full degree
+c
+c     output:
+c
+c     polout(nd,*) - real *8 array. nd sets of tensor Legendre
+c       coefficients in the legetens ordering giving the
+c       Laplacian of the input coefficients (of same degree)
+c      
+
+      implicit none
+      integer :: nd, ndeg
+      character :: type
+      real *8 :: polin(nd,*), polout(nd,*)
+c     local
+      real *8 :: dp, d2i, d2j, d2k
+      real *8, allocatable :: dxxmat(:,:)
+      integer :: n, i, j, npol, iii, ip, jp, kp, id, jd, kd, ind
+      integer :: jjj
+      integer, allocatable :: ip2ind(:,:,:), ind2p(:,:)
+
+      n = ndeg+1
+      allocate(dxxmat(0:ndeg,0:ndeg))
+      call legecoeff_d2mat(ndeg,dxxmat,n)
+
+      call legetens_npol_3d(ndeg,type,npol)
+
+      n = ndeg + 1
+      
+      allocate(ip2ind(0:ndeg,0:ndeg,0:ndeg),ind2p(3,npol))
+      
+      call legetens_pow2ind_3d(ndeg,type,ip2ind)
+      call legetens_ind2pow_3d(ndeg,type,ind2p)
+
+      do i = 1,npol
+         do j = 1,nd
+            polout(j,i) = 0.0d0
+         enddo
+      enddo
+
+      if (ndeg .lt. 2) return
+
+c     grab appropriate entries
+      
+      do iii = 1,npol
+         ip = ind2p(1,iii)
+         jp = ind2p(2,iii)
+         kp = ind2p(3,iii)
+
+         do kd = 0,kp-2
+            d2k = dxxmat(kd,kp)
+            ind = ip2ind(ip,jp,kd)
+            do jjj = 1,nd
+               dp = polin(jjj,iii)
+               polout(jjj,ind) = polout(jjj,ind) + dp*d2k
+            enddo
+         enddo
+         
+         do jd = 0,jp-2
+            d2j = dxxmat(jd,jp)
+            ind = ip2ind(ip,jd,kp)
+            do jjj = 1,nd
+               dp = polin(jjj,iii)
+               polout(jjj,ind) = polout(jjj,ind) + dp*d2j
+            enddo
+         enddo
+         
+         do id = 0,ip-2
+            d2i = dxxmat(id,ip)
+            ind = ip2ind(id,jp,kp)
+            do jjj = 1,nd
+               dp = polin(jjj,iii)
+               polout(jjj,ind) = polout(jjj,ind) + dp*d2i
+            enddo
+         enddo
+      enddo
+
+      return
+      end
+      
+      
