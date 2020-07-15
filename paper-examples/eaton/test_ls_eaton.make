@@ -6,7 +6,7 @@ EXEC = int2-fmm
 #HOST=linux-ifort
 HOST=linux-gfortran-prof
 HOST=linux-gfortran-debug
-#HOST=linux-gfortran-openmp
+HOST=linux-gfortran-openmp
 
 ifeq ($(HOST),osx)
 FC = gfortran
@@ -58,7 +58,7 @@ FMM3D = ~/FMM3D/src
 
 .PHONY: all clean list
 
-SOURCES =  test_ls_eaton_uni.f \
+SOURCES =  test_ls_eaton.f \
   $(SRC)/Common/prini_new.f \
   $(FMM3D)/Common/legeexps.f \
   $(SRC)/Common/tree_vol.f \
@@ -76,6 +76,7 @@ SOURCES =  test_ls_eaton_uni.f \
   $(SRC)/Common/qleigen_trid.f \
   $(SRC)/Common/yrecursion.f \
   $(SRC)/Common/quadintrouts.f \
+  $(SRC)/Common/quadintrouts2.f \
   $(SRC)/Common/loadsyms3d.f \
   $(SRC)/Common/squarearbq.f \
   $(SRC)/Common/zerrf.f \
@@ -123,7 +124,7 @@ OBJECTS = $(patsubst %.f,%.o,$(patsubst %.f90,%.o,$(SOURCES)))
 all: $(OBJECTS)
 	rm -f $(EXEC)
 	$(FLINK) $(OBJECTS) $(FEND)
-	./$(EXEC) 2 
+#	./$(EXEC) 2 
 
 clean:
 	rm -f $(OBJECTS)
