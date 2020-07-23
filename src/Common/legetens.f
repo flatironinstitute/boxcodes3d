@@ -1165,6 +1165,68 @@ c
       end
 c     
 c     
+      subroutine legeinte_rect0(polin,n,polout)
+      implicit real *8 (a-h,o-z)
+      dimension polin(1),polout(*)
+c     
+c     this subroutine computes the indefinite integral of the 
+c     legendre expansion polin getting the expansion polout
+c     
+c     This routine differs from legeinte in that the constant
+c     term is set taking into account that the output polynomial
+c     is a degree higher, i.e. if you use all of the output
+c     coefficients, the corresponding function equals 0 at
+c     x = -1
+c     
+c     
+c     input parameters:
+c     
+c     polin - the legendre expansion to be integrated
+c     n - the order of the expansion polin 
+c     IMPORTANT NOTE: n is {\bf the order of the expansion, which is
+c     one less than the number of terms in the expansion!!}
+c     also nothe that the order of the integrated expansion is
+c     n+1 (who could think!)
+c
+c     output parameters:
+c     
+c     polout - the legendre expansion of the integral of the function 
+c     represented by the expansion polin
+c     
+      do 1200 i=1,n+2
+         polout(i)=0
+ 1200 continue
+c     
+      do 2000 k=2,n+1
+         j=k-1
+c     
+cccc  polout(k+1)=polin(k)/(2*j+1)+polout(k+1)
+         polout(k+1)=polin(k)/(2*j+1)
+         polout(k-1)=-polin(k)/(2*j+1)+polout(k-1)
+c     
+ 2000 continue
+c     
+      polout(2)=polin(1)+polout(2)
+c     
+      dd=0
+      dfac=1
+      sss=1
+      do 2200 m=1,(n+1)/2
+c
+         k = 2*m
+         sss = -sss*((k-1.0d0)/(k*1.0d0))         
+         dd=dd+polout(k+1)*sss
+
+ 2200 continue
+c     
+ccc   call prin2('dd=*',dd,1)
+      polout(1)=-dd
+c      polout(1) = 0
+c     
+      return
+      end
+c     
+c     
       
 
 

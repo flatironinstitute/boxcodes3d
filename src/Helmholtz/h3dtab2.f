@@ -404,9 +404,9 @@ c     power up to get necessary mutliples of lap2d and Ixx matrix
       do i = 1,(nup+niter)
          do j = 0,ndeg
             jdeg = j + 2*(i-1)
-            call legeinte_rect(dints(0,j,i-1),jdeg,tempv)
+            call legeinte_rect0(dints(0,j,i-1),jdeg,tempv)
             jdeg = jdeg + 1
-            call legeinte_rect(tempv,jdeg,dints(0,j,i))
+            call legeinte_rect0(tempv,jdeg,dints(0,j,i))
          enddo
       enddo
 
@@ -679,9 +679,9 @@ c     power up to get necessary mutliples of dxx and Ixx matrix
       do i = 1,(nup+niter)
          do j = 0,ndeg
             jdeg = j + 2*(i-1)
-            call legeinte_rect(dints(0,j,i-1),jdeg,tempv)
+            call legeinte_rect0(dints(0,j,i-1),jdeg,tempv)
             jdeg = jdeg + 1
-            call legeinte_rect(tempv,jdeg,dints(0,j,i))
+            call legeinte_rect0(tempv,jdeg,dints(0,j,i))
          enddo
       enddo
 

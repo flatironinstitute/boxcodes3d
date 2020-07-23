@@ -22,7 +22,7 @@ c$    use omp_lib
       call prini(6,13)
 
 
-      ndeg = 16
+      ndeg = 11
       nup = 12
 
       ndegout = ndeg + nup*2
