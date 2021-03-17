@@ -742,7 +742,7 @@ cc      call prinf("Starting adap quad for near*",i,0)
 
         zpars(1) = zk
 
-        nbatches = 4
+        nbatches = 48
         nttpcore = ceiling((ntarg_n+0.0d0)/nbatches)
         ntt = 1
 
