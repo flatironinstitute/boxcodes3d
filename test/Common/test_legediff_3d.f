@@ -18,6 +18,7 @@
       allocate(dmat(ndeg+1,ndeg+1))
       call legetens_exps_3d(itype,ndeg+1,ttype,x,u,npol3,v,npt,
      1  w)
+      dmat = 0 
       call legecoeff_dmat(ndeg,dmat,ndeg+1)
       allocate(f(npt),fcoef(npol3),fderxcoef(npol3))
       allocate(fderycoef(npol3),fderzcoef(npol3),pol(npol3))
@@ -53,7 +54,9 @@ c   nwo test derivative
 c
 c
       idir = 1
+      fderxcoef = 0
       call legediff_3d(ndeg,ttype,fcoef,idir,dmat,fderxcoef)
+      call prin2('fderxcoef=*',fderxcoef,24)
 
       
       call fder(xpt(1),xpt(2),xpt(3),idir,fex)
