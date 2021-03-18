@@ -78,6 +78,7 @@ all: $(OBJECTS)
 	rm -f $(EXEC)
 	$(FLINK) $(OBJECTS) $(FEND)
 	./$(EXEC) 2 
+	python plot_slice.py 
 
 clean:
 	rm -f $(OBJECTS)
