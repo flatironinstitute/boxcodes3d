@@ -9,7 +9,6 @@ y = x[:,3].reshape(n,n)
 figure(1)
 imshow(y,extent=[-3,3,-3,3])
 colorbar()
-show()
 
 figure(2)
 x = loadtxt('fort.46')
