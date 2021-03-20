@@ -836,6 +836,378 @@ c
 c
 c
 c
+c     
+c
+c
+      subroutine h3d_facelayergrad_eval_new(tol,zk,ndeg,ndegp,type,
+     1  iflg,slp_pots,slp_gradx,slp_grady,slp_gradz,dlp_pots,
+     2  dlp_gradx,dlp_grady,dlp_gradz,lda)
+      implicit real *8 (a-h,o-z)
+      real *8 tol
+      complex *16 zk
+      integer ndeg,ndegp,lda
+      complex *16 slp_pots(lda,*),slp_gradx(lda,*)
+      complex *16 slp_grady(lda,*),slp_gradz(lda,*)
+      complex *16 dlp_pots(lda,*),dlp_gradx(lda,*)
+      complex *16 dlp_grady(lda,*),dlp_gradz(lda,*)
+      complex *16, allocatable :: slp_near(:,:),slp_far(:,:)
+      complex *16, allocatable :: slp_gradx_near(:,:),slp_gradx_far(:,:)
+      complex *16, allocatable :: slp_grady_near(:,:),slp_grady_far(:,:)
+      complex *16, allocatable :: slp_gradz_near(:,:),slp_gradz_far(:,:)
+      complex *16, allocatable :: dlp_near(:,:),dlp_far(:,:)
+      complex *16, allocatable :: dlp_gradx_near(:,:),dlp_gradx_far(:,:)
+      complex *16, allocatable :: dlp_grady_near(:,:),dlp_grady_far(:,:)
+      complex *16, allocatable :: dlp_gradz_near(:,:),dlp_gradz_far(:,:)
+      character type
+
+      real *8, allocatable :: xyztarg(:,:),xyztarg_near(:,:)
+      real *8, allocatable :: xyztarg_far(:,:)
+      integer, allocatable :: ifar_ind(:),inear_ind(:)
+      real *8, allocatable :: xyztmp(:,:),qnodes(:,:),qwts(:)
+      real *8 xq(ndeg+1),xyzc(3),u,v,w
+      integer ipars(10)
+      real *8 dpars(5)
+      complex *16 zpars(3)
+
+      external h3d_slp,h3d_sgradx,h3d_sgrady,h3d_sgradz
+      external h3d_dlp,h3d_dgradx,h3d_dgrady,h3d_dgradz
+
+      integer norder, norder_p, ncores
+
+      done = 1
+      pi = atan(done)*4
+
+      norder = ndeg+1
+
+      norder_p = ndegp+1
+
+      call legetens_npol_2d(ndegp,type,npols)
+cc      call prinf('npols=*',npols,1)
+c     npols = norder_p*norder_p
+
+      bs = 2.0d0
+      xyzc(1) = -1
+      xyzc(2) = -1
+      xyzc(3) = -1 
+
+
+      itype = 0
+      call legeexps(itype,norder,xq,u,v,w)
+      do i=1,norder
+        xq(i) = xq(i) + 1
+      enddo
+c
+      nppbox = norder*norder*norder
+      ntarg0 = 10*nppbox
+      allocate(xyztmp(3,ntarg0))
+
+      istart1 = 4*nppbox+1
+      istart2 = 7*nppbox+1
+      
+      call tensrefpts3d(xq,norder,bs,xyzc,xyztmp,xyztmp(1,istart1),
+     1        xyztmp(1,istart2))
+
+      ntarg = 6*ntarg0
+      allocate(xyztarg(3,ntarg),xyztarg_near(3,ntarg))
+      allocate(xyztarg_far(3,ntarg),inear_ind(ntarg))
+      allocate(ifar_ind(ntarg))
+
+      do i=1,ntarg0
+        xyztarg(1,i+0*ntarg0) = xyztmp(2,i)
+        xyztarg(2,i+0*ntarg0) = xyztmp(3,i)
+        xyztarg(3,i+0*ntarg0) = xyztmp(1,i)+1
+
+        xyztarg(1,i+1*ntarg0) = xyztmp(2,i)
+        xyztarg(2,i+1*ntarg0) = xyztmp(3,i)
+        xyztarg(3,i+1*ntarg0) = xyztmp(1,i)-1
+
+        xyztarg(1,i+2*ntarg0) = xyztmp(1,i)
+        xyztarg(2,i+2*ntarg0) = xyztmp(3,i)
+        xyztarg(3,i+2*ntarg0) = xyztmp(2,i)+1
+        
+        xyztarg(1,i+3*ntarg0) = xyztmp(1,i)
+        xyztarg(2,i+3*ntarg0) = xyztmp(3,i)
+        xyztarg(3,i+3*ntarg0) = xyztmp(2,i)-1
+
+        xyztarg(1,i+4*ntarg0) = xyztmp(1,i)
+        xyztarg(2,i+4*ntarg0) = xyztmp(2,i)
+        xyztarg(3,i+4*ntarg0) = xyztmp(3,i)+1
+
+        xyztarg(1,i+5*ntarg0) = xyztmp(1,i)
+        xyztarg(2,i+5*ntarg0) = xyztmp(2,i)
+        xyztarg(3,i+5*ntarg0) = xyztmp(3,i)-1
+      enddo
+      
+
+      nquadmax = 8000
+      nqorder = 20
+      eps = tol
+      call h3d_get_eps_nqorder_nqmax(tol,norder,eps,nqorder,nquadmax,
+     1        nqorderf)
+      
+      intype = 2
+cc      call prinf("Starting adap quad for near*",i,0)
+
+
+      zpars(1) = zk
+
+      if(iflg.eq.1) then
+      
+        ntarg_f = 0
+        ntarg_n = 0
+      
+        znear = 0.6d0
+        xynear = 1.6d0
+
+        do i=1,ntarg
+          x=xyztarg(1,i)
+          y=xyztarg(2,i)
+          z=xyztarg(3,i)
+          if((abs(z).le.znear.and.abs(x).le.xynear.
+     1        and.abs(y).le.xynear)) then
+            ntarg_n = ntarg_n + 1
+            xyztarg_near(1,ntarg_n) = xyztarg(1,i)
+            xyztarg_near(2,ntarg_n) = xyztarg(2,i)
+            xyztarg_near(3,ntarg_n) = xyztarg(3,i)
+            inear_ind(ntarg_n) = i
+          else
+            ntarg_f = ntarg_f + 1
+            xyztarg_far(1,ntarg_f) = xyztarg(1,i)
+            xyztarg_far(2,ntarg_f) = xyztarg(2,i)
+            xyztarg_far(3,ntarg_f) = xyztarg(3,i)
+            ifar_ind(ntarg_f) = i
+          endif
+        enddo
+
+        allocate(slp_near(npols,ntarg_n),slp_gradx_near(npols,ntarg_n))
+        allocate(slp_far(npols,ntarg_f),slp_gradx_far(npols,ntarg_f))
+        allocate(slp_grady_near(npols,ntarg_n))
+        allocate(slp_grady_far(npols,ntarg_f))
+        allocate(slp_gradz_near(npols,ntarg_n))
+        allocate(slp_gradz_far(npols,ntarg_f))
+
+        allocate(dlp_near(npols,ntarg_n),dlp_gradx_near(npols,ntarg_n))
+        allocate(dlp_far(npols,ntarg_f),dlp_gradx_far(npols,ntarg_f))
+        allocate(dlp_grady_near(npols,ntarg_n))
+        allocate(dlp_grady_far(npols,ntarg_f))
+        allocate(dlp_gradz_near(npols,ntarg_n))
+        allocate(dlp_gradz_far(npols,ntarg_f))
+
+        do i=1,ntarg_n
+          do j=1,npols
+            slp_near(j,i) = 0
+            slp_gradx_near(j,i) = 0
+            slp_grady_near(j,i) = 0
+            slp_gradz_near(j,i) = 0
+
+            dlp_near(j,i) = 0
+            dlp_gradx_near(j,i) = 0
+            dlp_grady_near(j,i) = 0
+            dlp_gradz_near(j,i) = 0
+          enddo
+        enddo
+
+        do i=1,ntarg_f
+          do j=1,npols
+            slp_far(j,i) = 0
+            slp_gradx_far(j,i) = 0
+            slp_grady_far(j,i) = 0
+            slp_gradz_far(j,i) = 0
+
+            dlp_far(j,i) = 0
+            dlp_gradx_far(j,i) = 0
+            dlp_grady_far(j,i) = 0
+            dlp_gradz_far(j,i) = 0
+          enddo
+        enddo
+
+        nquadmax = 8000
+        nqorder = 20
+        eps = tol
+        call h3d_get_eps_nqorder_nqmax(tol,norder,eps,nqorder,nquadmax,
+     1        nqorderf)
+      
+        intype = 2
+
+
+
+        zpars(1) = zk
+
+        nbatches = 48
+        nttpcore = ceiling((ntarg_n+0.0d0)/nbatches)
+        ntt = 1
+
+        t1 = second()
+C$       t1 = omp_get_wtime()  
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,istart,iend,ntt)
+c$OMP& SCHEDULE(DYNAMIC)      
+        do i=1,nbatches
+          istart = (i-1)*nttpcore+1
+          iend = min(i*nttpcore,ntarg_n)
+          ntt = iend-istart+1
+
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
+     1       xyztarg_near(1,istart),nquadmax,h3d_slp,dpars,zpars,ipars,
+     2       nqorder,slp_near(1,istart))
+
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
+     1       xyztarg_near(1,istart),nquadmax,h3d_sgradx,dpars,zpars,
+     2       ipars,nqorder,slp_gradx_near(1,istart))
+
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
+     1       xyztarg_near(1,istart),nquadmax,h3d_sgrady,dpars,zpars,
+     2       ipars,nqorder,slp_grady_near(1,istart))
+
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
+     1       xyztarg_near(1,istart),nquadmax,h3d_sgradz,dpars,zpars,
+     2       ipars,nqorder,slp_gradz_near(1,istart))
+
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
+     1       xyztarg_near(1,istart),nquadmax,h3d_dlp,dpars,zpars,ipars,
+     2       nqorder,dlp_near(1,istart))
+
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
+     1       xyztarg_near(1,istart),nquadmax,h3d_dgradx,dpars,zpars,
+     2       ipars,nqorder,dlp_gradx_near(1,istart))
+
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
+     1       xyztarg_near(1,istart),nquadmax,h3d_dgrady,dpars,zpars,
+     2       ipars,nqorder,dlp_grady_near(1,istart))
+
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
+     1       xyztarg_near(1,istart),nquadmax,h3d_dgradz,dpars,zpars,
+     2       ipars,nqorder,dlp_gradz_near(1,istart))
+
+        enddo
+C$OMP END PARALLEL DO      
+        t2 = second()
+C$       t2 = omp_get_wtime()      
+
+cc      call prin2('time taken in evaluating near=*',t2-t1,1)
+
+
+        call squarearbq_pts(nqorderf,nnodes)
+
+        nu = 3
+        nqpts = nnodes*nu*nu
+        allocate(qnodes(2,nqpts),qwts(nqpts))
+
+
+        call gen_xg_uniftree_nodes(nqorderf,nnodes,nu,nqpts,qnodes,qwts)
+
+        call cquadints_wnodes(norder_p,type,npols,ntarg_f,xyztarg_far,
+     1      h3d_slp,dpars,zpars,ipars,nqpts,qnodes,qwts,slp_far)
+
+        call cquadints_wnodes(norder_p,type,npols,ntarg_f,xyztarg_far,
+     1   h3d_sgradx,dpars,zpars,ipars,nqpts,qnodes,qwts,slp_gradx_far)
+
+        call cquadints_wnodes(norder_p,type,npols,ntarg_f,xyztarg_far,
+     1   h3d_sgrady,dpars,zpars,ipars,nqpts,qnodes,qwts,slp_grady_far)
+
+        call cquadints_wnodes(norder_p,type,npols,ntarg_f,xyztarg_far,
+     1   h3d_sgradz,dpars,zpars,ipars,nqpts,qnodes,qwts,slp_gradz_far)
+
+        call cquadints_wnodes(norder_p,type,npols,ntarg_f,xyztarg_far,
+     1      h3d_dlp,dpars,zpars,ipars,nqpts,qnodes,qwts,dlp_far)
+
+        call cquadints_wnodes(norder_p,type,npols,ntarg_f,xyztarg_far,
+     1   h3d_dgradx,dpars,zpars,ipars,nqpts,qnodes,qwts,dlp_gradx_far)
+
+        call cquadints_wnodes(norder_p,type,npols,ntarg_f,xyztarg_far,
+     1   h3d_dgrady,dpars,zpars,ipars,nqpts,qnodes,qwts,dlp_grady_far)
+
+        call cquadints_wnodes(norder_p,type,npols,ntarg_f,xyztarg_far,
+     1   h3d_dgradz,dpars,zpars,ipars,nqpts,qnodes,qwts,dlp_gradz_far)
+
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j)
+        do i=1,ntarg_n
+          do j=1,npols
+            slp_pots(j,inear_ind(i)) = slp_near(j,i)
+            slp_gradx(j,inear_ind(i)) = slp_gradx_near(j,i)
+            slp_grady(j,inear_ind(i)) = slp_grady_near(j,i)
+            slp_gradz(j,inear_ind(i)) = slp_gradz_near(j,i)
+            dlp_pots(j,inear_ind(i)) = dlp_near(j,i)
+            dlp_gradx(j,inear_ind(i)) = dlp_gradx_near(j,i)
+            dlp_grady(j,inear_ind(i)) = dlp_grady_near(j,i)
+            dlp_gradz(j,inear_ind(i)) = dlp_gradz_near(j,i)
+          enddo
+        enddo
+C$OMP END PARALLEL DO
+
+
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j)
+        do i=1,ntarg_f
+          do j=1,npols
+            slp_pots(j,ifar_ind(i)) = slp_far(j,i)
+            slp_gradx(j,ifar_ind(i)) = slp_gradx_far(j,i)
+            slp_grady(j,ifar_ind(i)) = slp_grady_far(j,i)
+            slp_gradz(j,ifar_ind(i)) = slp_gradz_far(j,i)
+            dlp_pots(j,ifar_ind(i)) = dlp_far(j,i)
+            dlp_gradx(j,ifar_ind(i)) = dlp_gradx_far(j,i)
+            dlp_grady(j,ifar_ind(i)) = dlp_grady_far(j,i)
+            dlp_gradz(j,ifar_ind(i)) = dlp_gradz_far(j,i)
+          enddo
+        enddo
+C$OMP END PARALLEL DO
+      endif
+
+
+      if(iflg.eq.2) then
+        ntt = 1
+
+        t1 = second()
+C$       t1 = omp_get_wtime()  
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
+c$OMP& SCHEDULE(DYNAMIC)      
+        do i=1,ntarg
+
+          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+     1     xyztarg(1,i),nquadmax,h3d_slp,dpars,zpars,ipars,
+     2     nqorder,slp_pots(1,i))
+
+          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+     1     xyztarg(1,i),nquadmax,h3d_sgradx,dpars,zpars,ipars,
+     2     nqorder,slp_gradx(1,i))
+
+          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+     1     xyztarg(1,i),nquadmax,h3d_sgrady,dpars,zpars,ipars,
+     2     nqorder,slp_grady(1,i))
+
+          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+     1     xyztarg(1,i),nquadmax,h3d_sgradz,dpars,zpars,ipars,
+     2     nqorder,slp_gradz(1,i))
+
+          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+     1     xyztarg(1,i),nquadmax,h3d_dlp,dpars,zpars,ipars,
+     2     nqorder,dlp_pots(1,i))
+
+          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+     1     xyztarg(1,i),nquadmax,h3d_dgradx,dpars,zpars,ipars,
+     2     nqorder,dlp_gradx(1,i))
+
+          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+     1     xyztarg(1,i),nquadmax,h3d_dgrady,dpars,zpars,ipars,
+     2     nqorder,dlp_grady(1,i))
+
+          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+     1     xyztarg(1,i),nquadmax,h3d_dgradz,dpars,zpars,ipars,
+     2     nqorder,dlp_gradz(1,i))
+
+        enddo
+C$OMP END PARALLEL DO      
+        t2 = second()
+C$       t2 = omp_get_wtime()      
+      endif
+
+
+      return
+      end
+c
+c
+c
+c
+c
+c
       subroutine h3d_get_eps_nqorder_nqmax(tol,norder,eps,nqorder,
      1   nqmax,nqorderf)
       implicit none
@@ -1080,6 +1452,136 @@ c
 c
 c
 c     
+c
+c
+      subroutine h3d_sgradx(x,y,dpars,zpars,ipars,f)
+      implicit real *8 (a-h,o-z)
+      real *8 x(2),y(3),dpars(*)
+      complex *16 zpars(*),ima
+      data ima/(0.0d0,1.0d0)/
+      integer ipars(*)
+      complex *16 f,z
+
+      rr = sqrt((x(1)-y(1))**2 + (x(2)-y(2))**2 + y(3)**2)
+      z = ima*zpars(1)*rr
+
+      f = exp(z)*(y(1)-x(1))*(z-1.0d0)/rr**3
+
+      return
+      end
+
+c
+c
+c
+c     
+c
+c
+      subroutine h3d_sgrady(x,y,dpars,zpars,ipars,f)
+      implicit real *8 (a-h,o-z)
+      real *8 x(2),y(3),dpars(*)
+      complex *16 zpars(*),ima
+      data ima/(0.0d0,1.0d0)/
+      integer ipars(*)
+      complex *16 f,z
+
+      rr = sqrt((x(1)-y(1))**2 + (x(2)-y(2))**2 + y(3)**2)
+      z = ima*zpars(1)*rr
+
+      f = exp(z)*(y(2)-x(2))*(z-1.0d0)/rr**3
+
+      return
+      end
+
+c
+c
+c
+c
+c     
+c
+c
+      subroutine h3d_sgradz(x,y,dpars,zpars,ipars,f)
+      implicit real *8 (a-h,o-z)
+      real *8 x(2),y(3),dpars(*)
+      complex *16 zpars(*),ima
+      data ima/(0.0d0,1.0d0)/
+      integer ipars(*)
+      complex *16 f,z
+
+      rr = sqrt((x(1)-y(1))**2 + (x(2)-y(2))**2 + y(3)**2)
+      z = ima*zpars(1)*rr
+
+      f = exp(z)*y(3)*(z-1.0d0)/rr**3
+
+      return
+      end
+
+c
+c     
+c
+c
+      subroutine h3d_dgradx(x,y,dpars,zpars,ipars,f)
+      implicit real *8 (a-h,o-z)
+      real *8 x(2),y(3),dpars(*)
+      complex *16 zpars(*),ima
+      data ima/(0.0d0,1.0d0)/
+      integer ipars(*)
+      complex *16 f,z
+
+      rr = sqrt((x(1)-y(1))**2 + (x(2)-y(2))**2 + y(3)**2)
+      z = ima*zpars(1)*rr
+
+      f = -exp(z)*(y(1)-x(1))*y(3)*(-3.0d0 + 3*z - z**2)/rr**5
+
+      return
+      end
+
+c
+c
+c
+c     
+c
+c
+      subroutine h3d_dgrady(x,y,dpars,zpars,ipars,f)
+      implicit real *8 (a-h,o-z)
+      real *8 x(2),y(3),dpars(*)
+      complex *16 zpars(*),ima
+      data ima/(0.0d0,1.0d0)/
+      integer ipars(*)
+      complex *16 f,z
+
+      rr = sqrt((x(1)-y(1))**2 + (x(2)-y(2))**2 + y(3)**2)
+      z = ima*zpars(1)*rr
+
+      f = -exp(z)*(y(2)-x(2))*y(3)*(-3.0d0 + 3*z - z**2)/rr**5
+
+      return
+      end
+
+c
+c
+c
+c
+c     
+c
+c
+      subroutine h3d_dgradz(x,y,dpars,zpars,ipars,f)
+      implicit real *8 (a-h,o-z)
+      real *8 x(2),y(3),dpars(*)
+      complex *16 zpars(*),ima
+      data ima/(0.0d0,1.0d0)/
+      integer ipars(*)
+      complex *16 f,z
+
+      rr = sqrt((x(1)-y(1))**2 + (x(2)-y(2))**2 + y(3)**2)
+      z = ima*zpars(1)*rr
+      f=-exp(z)*((z-1.0d0)*rr**2+y(3)*y(3)*(-3.0d0 + 3*z - z**2))/rr**5
+      
+
+
+      return
+      end
+
+c
 c
 c
       subroutine h3d_facelayerpot_eval(tol,zk,ndeg,ndegp,type,
