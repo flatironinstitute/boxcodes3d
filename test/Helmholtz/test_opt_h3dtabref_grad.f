@@ -138,6 +138,10 @@ cc
              
              erra = abs(tab(j,i,1)-tab_ref(j,i,1))/abs(tab_ref(j,i,1))
              if(erra.gt.errmax2) errmax2 = erra
+             if(i.lt.3.and.j-npt.lt.5) then
+               call prin2('tab=*',tab(j,i,1),6)
+               call prin2('tab_ref=*',tab_ref(j,i,1),6)
+             endif
 
 
              erra = abs(tab(j,i,1)-tab_ref(j,i,1))
@@ -175,6 +179,7 @@ cc
 
              
              erra = abs(tab2(j,i,1)-tab_ref(j,i,1))/abs(tab_ref(j,i,1))
+
              if(erra.gt.errmax2) errmax2 = erra
 
 
@@ -282,7 +287,7 @@ c     local
       integer ldu, ldv
       integer iflg
       
-      complex *16 zero, im, one,mone
+      complex *16 zero, im, one
       complex *16, allocatable :: tabtemp(:,:), ahc(:,:), zv(:,:)
       complex *16, allocatable :: ahderc(:,:), ahcleg(:,:)
       complex *16, allocatable :: ahdercleg(:,:), ahelm(:), ahelms(:,:)
@@ -295,7 +300,6 @@ c     local
       
       data zero / (0.0d0,0.0d0) /
       data one / (1.0d0,0.0d0) /      
-      data mone / (-1.0d0,0.0d0) /      
       data im / (0.0d0,1.0d0) /
       data slicevals / -1.0d0, 1.0d0, -1.0d0, 1.0d0, -1.0d0, 1.0d0 /
       data flipd / -1.0d0, 1.0d0, -1.0d0, 1.0d0, -1.0d0, 1.0d0 /
@@ -315,6 +319,8 @@ c     local
         idimgcomb(2,i) = idimgy(i)
         idimgcomb(3,i) = idimgz(i)
       enddo
+
+      call prinf('idimgcomb=*',idimgcomb,18)
       
       n = ndeg+1
       
@@ -411,13 +417,13 @@ C$      t1 = omp_get_wtime()
      2     slp_grad(1,1,3),dlp_pots,dlp_grad(1,1,1),dlp_grad(1,1,2),
      3     dlp_grad(1,1,3),npol2)
 
-      do idir=1,3
-         do ii = 1,npol3
-            do jj = npt+1,ntarg0
-               tab(jj,ii,idir) = zero
-            enddo
-         enddo
-      enddo
+cc      do idir=1,3
+cc         do ii = 1,npol3
+cc            do jj = npt+1,ntarg0
+cc               tab(jj,ii,idir) = zero
+cc            enddo
+cc         enddo
+cc      enddo
       call cpu_time(t2)
 C$      t2 = omp_get_wtime()      
       tlpadap = t2-t1

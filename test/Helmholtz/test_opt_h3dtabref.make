@@ -8,8 +8,8 @@ HOST = osx
 
 ifeq ($(HOST),osx)
 FC = gfortran
-FFLAGS = -O3 -march=native -funroll-loops -c -w -fopenmp
-FLINK = gfortran -w -fopenmp -o $(EXEC)
+FFLAGS = -O3 -march=native -funroll-loops -c -w -fopenmp -std=legacy
+FLINK = gfortran -w -fopenmp -std=legacy -o $(EXEC)
 FEND = -lopenblas ${LDFLAGS}
 endif
 
@@ -92,7 +92,7 @@ OBJECTS = $(patsubst %.f,%.o,$(patsubst %.f90,%.o,$(SOURCES)))
 all: $(OBJECTS)
 	rm -f $(EXEC)
 	$(FLINK) $(OBJECTS) $(FEND)
-	./$(EXEC) 2 3 
+	./$(EXEC) 1 3 
 
 clean:
 	rm -f $(OBJECTS)
