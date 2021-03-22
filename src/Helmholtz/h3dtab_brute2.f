@@ -783,11 +783,13 @@ c
       complex *16 zpars(*),ima
       data ima/(0.0d0,1.0d0)/
       integer ipars(*)
-      complex *16 f
+      complex *16 f,zk
+
+      zk = zpars(1)
 
       rr = sqrt((x(1)-y(1))**2 + (x(2)-y(2))**2 + (x(3)-y(3))**2)
 
-      f = -(x(1)-y(1))*(1.0d0-ima*zk*r)*exp(ima*zpars(1)*rr)/rr**3
+      f = -(y(1)-x(1))*(1.0d0-ima*zk*rr)*exp(ima*zpars(1)*rr)/rr**3
 
       return
       end
@@ -804,23 +806,16 @@ c
       complex *16 zpars(*),ima
       data ima/(0.0d0,1.0d0)/
       integer ipars(*)
-      complex *16 f
+      complex *16 f,zk
+
+      zk = zpars(1)
 
       rr = sqrt((x(1)-y(1))**2 + (x(2)-y(2))**2 + (x(3)-y(3))**2)
 
-      f = -(x(2)-y(2))*(1.0d0-ima*zk*r)*exp(ima*zpars(1)*rr)/rr**3
+      f = -(y(2)-x(2))*(1.0d0-ima*zk*rr)*exp(ima*zpars(1)*rr)/rr**3
 
       return
       end
-
-c      
-c      
-c
-c
-c
-c
-c      
-c      
 c
 c
 c
@@ -831,11 +826,13 @@ c
       complex *16 zpars(*),ima
       data ima/(0.0d0,1.0d0)/
       integer ipars(*)
-      complex *16 f
+      complex *16 f,zk
+
+      zk = zpars(1)
 
       rr = sqrt((x(1)-y(1))**2 + (x(2)-y(2))**2 + (x(3)-y(3))**2)
 
-      f = -(x(3)-y(3))*(1.0d0-ima*zk*r)*exp(ima*zpars(1)*rr)/rr**3
+      f = -(y(3)-x(3))*(1.0d0-ima*zk*rr)*exp(ima*zpars(1)*rr)/rr**3
 
       return
       end

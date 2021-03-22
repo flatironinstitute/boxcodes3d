@@ -130,7 +130,7 @@ cc
           errmaxa = 0
           rmax = 0
           do i=1,npol3
-            do j=npt+1,ntarg0
+            do j=1,ntarg0
              ra = max(abs(tab_ref(j,i,1)),1.0d0)
              erra = abs(tab(j,i,1)-tab_ref(j,i,1))/ra
              if(erra.gt.errmax1) errmax1 = erra
@@ -417,13 +417,13 @@ C$      t1 = omp_get_wtime()
      2     slp_grad(1,1,3),dlp_pots,dlp_grad(1,1,1),dlp_grad(1,1,2),
      3     dlp_grad(1,1,3),npol2)
 
-cc      do idir=1,3
-cc         do ii = 1,npol3
-cc            do jj = npt+1,ntarg0
-cc               tab(jj,ii,idir) = zero
-cc            enddo
-cc         enddo
-cc      enddo
+      do idir=1,3
+         do ii = 1,npol3
+            do jj = npt+1,ntarg0
+               tab(jj,ii,idir) = zero
+            enddo
+         enddo
+      enddo
       call cpu_time(t2)
 C$      t2 = omp_get_wtime()      
       tlpadap = t2-t1
