@@ -97,14 +97,14 @@ c
           
           iflg = 1
 
-          call h3dtabp_ref2_grad(ndeg,zk,tol,tab,ntarg0,npol3,
+          call h3dtabp_ref2_grad_fast(ndeg,zk,tol,tab,ntarg0,npol3,
      1      ifsphere,ndeg2,iflg,tts(1,izk,iflg),tts(2,izk,iflg),
      2      tts(3,izk,iflg))
           
           
           iflg = 2
 
-          call h3dtabp_ref2_grad(ndeg,zk,tol,tab,ntarg0,npol3,
+          call h3dtabp_ref2_grad_fast(ndeg,zk,tol,tab,ntarg0,npol3,
      1      ifsphere,ndeg2,iflg,tts(1,izk,iflg),tts(2,izk,iflg),
      2      tts(3,izk,iflg))
           print *, "Done with 2d adap quad"
@@ -130,7 +130,7 @@ cc
           errmaxa = 0
           rmax = 0
           do i=1,npol3
-            do j=1,ntarg0
+            do j=npt+1,ntarg0
              ra = max(abs(tab_ref(j,i,1)),1.0d0)
              erra = abs(tab(j,i,1)-tab_ref(j,i,1))/ra
              if(erra.gt.errmax1) errmax1 = erra
@@ -483,15 +483,19 @@ C$      t2 = omp_get_wtime()
 c      
 c
       
-      subroutine h3dtabp_ref2_grad_nw(ndeg,zk,tol,tab,ldtab1,ldtab2,
+      subroutine h3dtabp_ref2_grad_fast(ndeg,zk,tol,tab,ldtab1,ldtab2,
      1   ifsphere,ndeg2,iflg,tpat,tlpadap,tlpspr)
 c
 c     generate the Helmholtz gradient table at the reference
 c     points.
 c
+c     This code uses the following representation for computing
+c     the gradient of the layer potentials
 c
-c     Not functioning, due to incorrect jump in normal
-c     component on the boundary
+c     \int_{B} \nabla_{x} G \cdot f = \int_{\nabla} \nabla_{x} (Gf) 
+c         - \int_{B} G \cdot \nabla_{x} f \, ,
+c                = \int_{F} (Gf)  (for appropriate faces) -
+c                    \int_{B} G \cdot \nabla_{x} f
 c
 c
 c     input
@@ -544,18 +548,21 @@ c     local
       integer ldu, ldv
       integer iflg
       
-      complex *16 zero, im, one
+      complex *16 zero, im, one,mone
       complex *16, allocatable :: tabtemp(:,:), ahc(:,:), zv(:,:)
       complex *16, allocatable :: ahderc(:,:), ahcleg(:,:)
       complex *16, allocatable :: ahdercleg(:,:), ahelm(:), ahelms(:,:)
+      complex *16, allocatable :: ahclegface(:,:,:)
+      complex *16, allocatable :: ahdercleguse(:,:)
       complex *16, allocatable :: ahcleg3(:,:), leg2sph(:,:)
       complex *16, allocatable :: slp_pots(:,:), dlp_pots(:,:)
-      complex *16, allocatable :: ahcleg3grad(:,:,:)
+      complex *16, allocatable :: ahcleg3grad(:,:,:),zeyenpol3(:,:)
       real *8, allocatable :: dmat(:,:),vtmp1(:),vtmp2(:)
 
       
       data zero / (0.0d0,0.0d0) /
       data one / (1.0d0,0.0d0) /      
+      data mone / (-1.0d0,0.0d0) /      
       data im / (0.0d0,1.0d0) /
       data slicevals / -1.0d0, 1.0d0, -1.0d0, 1.0d0, -1.0d0, 1.0d0 /
       data flipd / -1.0d0, 1.0d0, -1.0d0, 1.0d0, -1.0d0, 1.0d0 /
@@ -586,7 +593,9 @@ c     memory for coeffs, etc.
 
       allocate(ahc(npol2,npol3),ahderc(npol2,npol3))
       allocate(ahcleg3(npol3,npol3),leg2sph(npol3,npol3))
+      allocate(zeyenpol3(npol3,npol3))
       allocate(ahcleg(npol2,npol3),ahdercleg(npol2,npol3))
+      allocate(ahdercleguse(npol2,npol3),ahclegface(npol2,npol3,6))
       allocate(ahcleg3grad(npol3,npol3,3),dmat(n,n))
       allocate(vtmp1(npol3),vtmp2(npol3))
 
@@ -674,6 +683,28 @@ C$      t2 = omp_get_wtime()
       call cpu_time(t1)
 C$      t1 = omp_get_wtime()      
 
+      ifdiff = 0
+
+      do i=1,npol3
+        do j=1,npol3
+          zeyenpol3(j,i) = 0
+        enddo
+      enddo
+
+      do i=1,npol3
+        zeyenpol3(i,i) = 1.0d0
+      enddo
+
+      
+      do iface=1,6
+         idim = idims(iface)
+         val = slicevals(iface)
+         derscale = val
+         call legetens_slicezcoeffs_3d(ndeg,type,idim,val,
+     1   zeyenpol3,npol3,npol3,ahclegface(1,1,iface),npol2,ifdiff,
+     2   ahdercleg,npol2)
+
+      enddo
       do idir=1,3
          do iface = 1,6
 
@@ -687,15 +718,32 @@ C$      t1 = omp_get_wtime()
      2        ahdercleg,npol2)
             do ii = 1,npol3
                do jj = 1,npol2
-                  ahdercleg(jj,ii) = derscale*ahdercleg(jj,ii)
+                  ahdercleguse(jj,ii) = derscale*ahdercleg(jj,ii)
                enddo
-           enddo
+            enddo
+           
+           if(iface.eq.2*idir-1) then
+             do ii = 1,npol3
+                do jj = 1,npol2
+                   ahdercleguse(jj,ii) = ahdercleguse(jj,ii) +
+     1                  ahclegface(jj,ii,iface) 
+                enddo
+             enddo
+           endif
+           if(iface.eq.2*idir) then
+             do ii = 1,npol3
+                do jj = 1,npol2
+                   ahdercleguse(jj,ii) = ahdercleguse(jj,ii) -
+     1                  ahclegface(jj,ii,iface) 
+                enddo
+             enddo
+           endif
          
 
             istart = (iface-1)*ntarg0 + 1
             call zgemm('T','N',ntarg0,npol3,npol2,one,
      1           slp_pots(1,istart),
-     1           npol2,ahdercleg,npol2,zero,tabtemp,ntarg0)
+     1           npol2,ahdercleguse,npol2,zero,tabtemp,ntarg0)
 
             do ii = 1,npol3
                do jj = 1,ntarg0

@@ -343,7 +343,7 @@ c
       character *1 transa,transb
       real *8 alpha,beta,ra
       integer lda,ldb,ldc
-      real *8 u, v
+      real *8 u, v,eps_use
       integer ldu, ldv, itype,ndeg,l
       
 c
@@ -550,6 +550,7 @@ c
         
         da(1) = (tvs(1,2,1)-tvs(1,1,1))*(tvs(2,3,1)-tvs(2,1,1))*
      1        (tvs(3,4,1)-tvs(3,1,1))/8
+        eps_use = eps*sqrt(da(1))
 
         do itarg=1,ntarg
           ncube = 1
@@ -567,7 +568,7 @@ c
             cinttmp(l,itarg) = 0
           enddo
         
-          call cubeadap(eps,nqorder,nqpols,nlmax,ncmax,ncube,
+          call cubeadap(eps_use,nqorder,nqpols,nlmax,ncmax,ncube,
      1      ichild_start,tvs,da,uvsq,wts, 
      1      norder,ttype,npols,npmax,uvvals,qwts,sigvals,
      1      xyztarg(1,itarg),

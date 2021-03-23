@@ -241,7 +241,6 @@ c
       end
 
 
-
 c
 c
 c
@@ -332,7 +331,18 @@ c
       
       call cpu_time(t1)
 C$     t1 = omp_get_wtime()
-      
+
+
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i) SCHEDULE(DYNAMIC)
+      do i=1,npt
+        call ccubeints_split8int_adap(eps,norder,'t',npols,
+     1        xyztarg(1,i),ntt,xyztarg(1,i),
+     1        ncmax,h3d_vslp,dpars,zk,ipars,nqorder,tab_t(1,i))
+      enddo
+C$OMP END PARALLEL DO
+
+
+
 C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
 C$OMP$SCHEDULE(DYNAMIC)
       do i=npt+1,ntarg
@@ -727,6 +737,14 @@ c
       call cpu_time(t1)
 C$     t1 = omp_get_wtime()
       
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i) SCHEDULE(DYNAMIC)
+      do i=1,npt
+        call ccubeints_split8int_adap(eps,norder,'t',npols,
+     1        xyztarg(1,i),ntt,xyztarg(1,i),
+     1        ncmax,fker,dpars,zpars,ipars,nqorder,tab_t(1,i))
+      enddo
+C$OMP END PARALLEL DO
+
 C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
 C$OMP$SCHEDULE(DYNAMIC)
       do i=npt+1,ntarg
