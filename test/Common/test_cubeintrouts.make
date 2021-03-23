@@ -6,7 +6,7 @@ HOST = osx
 
 ifeq ($(HOST),osx)
 FC = gfortran
-FFLAGS = -O3 -march=native -funroll-loops -c -w
+FFLAGS = -O3 -march=native -funroll-loops -std=legacy -c -w
 FLINK = gfortran -w -o $(EXEC)
 FEND = -framework accelerate
 endif

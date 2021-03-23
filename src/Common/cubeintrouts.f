@@ -3,7 +3,7 @@ c
 c        routines in this file
 c         
 c           ccubeints_adap - completely adaptive integration
-c                       for the quad patch
+c                       for the cube patch
 c
 c
 c         We integrate against legendre polynomials on the standard
@@ -185,7 +185,7 @@ c
       ldu = 1
       ldv = 1
       itype = 1
-      call legetens_exps_3d(itype,nqorder,type,uvsq,u,ldu,v,ldv,wts)        
+      call legetens_exps_3d(itype,nqorder,type,uvsq,u,ldu,v,ldv,wts)
 
 
       allocate(uvtmp(3,nqpols))
