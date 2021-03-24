@@ -1321,4 +1321,112 @@ c     grab appropriate entries
       return
       end
       
-      
+    
+
+      subroutine legediff_3d(ndeg,ttype,polin,idir,dmat,polout)
+c
+c       This subroutine differentiates a tensor
+c       product legendre expansion expressed in 
+c       its coefficient basis and returns
+c       the tensor product legendre expansion
+c       coeffs of the derivative
+c 
+c       input arguments:
+c
+c     ndeg refers to polynomial degree
+c      
+c     n refers to order of approximation and number of nodes
+c     used in each direction (n = ndeg+1)
+c
+c     type character specifies the set of tensor
+c     polynomials to use. current options
+c
+c     ttype = 'F', full degree polynomials (T_i(x)T_j(y)T_k(z) where
+c                 each of i, j, and k goes from 0 to ndeg)
+c     ttype = 'T', total degree polynomials (T_i(x)T_j(y)T_k(z) where
+c                 sum of i,j,k>=0 is less than or equal to ndeg)
+c     
+c     polin - real *8 (*)
+c       tensor product legendre expansion coeffs of 
+c       input polynomial
+c
+c     dmat - real *8 (ndeg+1,ndeg+1)
+c       differentiation martix in 1d
+c
+c     idir - integer
+c       whether to compute x,y,or z derivative of expansion
+c       idir = 1, compute x derivative
+c       idir = 2, compute y derivative
+c       idir = 3, compute z derivative
+c
+c
+c
+      implicit real *8 (a-h,o-z)
+      real *8 dmat(ndeg+1,ndeg+1),polin(*),polout(*)
+      real *8 coef1(ndeg+1,ndeg+1,ndeg+1),coef2(ndeg+1,ndeg+1,ndeg+1)
+      integer iind2pow(3,(ndeg+1)**3)
+      character ttype
+
+
+      call legetens_ind2pow_3d(ndeg,ttype,iind2pow)
+      call legetens_npol_3d(ndeg,ttype,npol)
+c
+c   extract coef mat
+c
+c
+
+      coef1 = 0
+      coef2 = 0
+      do i=1,npol
+        i1 = iind2pow(1,i)+1
+        i2 = iind2pow(2,i)+1
+        i3 = iind2pow(3,i)+1
+        coef1(i1,i2,i3) = polin(i)
+      enddo
+
+      if(idir.eq.1) then
+        do j=1,ndeg+1
+          do k=1,ndeg+1
+            do l=1,ndeg+1
+              do i=1,ndeg+1
+                coef2(l,k,j) = coef2(l,k,j) + dmat(l,i)*coef1(i,k,j)
+              enddo
+            enddo
+          enddo
+        enddo
+      endif
+
+      if(idir.eq.2) then
+        do j=1,ndeg+1
+          do k=1,ndeg+1
+            do l=1,ndeg+1
+              do i=1,ndeg+1
+                coef2(k,l,j) = coef2(k,l,j) + dmat(l,i)*coef1(k,i,j)
+              enddo
+            enddo
+          enddo
+        enddo
+      endif
+
+      if(idir.eq.3) then
+        do j=1,ndeg+1
+          do k=1,ndeg+1
+            do l=1,ndeg+1
+              do i=1,ndeg+1
+                coef2(k,j,l) = coef2(k,j,l) + dmat(l,i)*coef1(k,j,i)
+              enddo
+            enddo
+          enddo
+        enddo
+      endif
+
+      do i=1,npol
+        i1 = iind2pow(1,i)+1
+        i2 = iind2pow(2,i)+1
+        i3 = iind2pow(3,i)+1
+        polout(i) = coef2(i1,i2,i3) 
+      enddo
+
+
+      return
+      end

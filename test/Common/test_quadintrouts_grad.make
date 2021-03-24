@@ -1,12 +1,12 @@
 
 EXEC = triaintrouts
 
-HOST = osx
-#HOST=linux-gfortran
+#HOST = osx
+HOST=linux-gfortran
 
 ifeq ($(HOST),osx)
 FC = gfortran
-FFLAGS = -O3 -march=native -funroll-loops -std=legacy -c -w
+FFLAGS = -O3 -march=native -funroll-loops -c -w
 FLINK = gfortran -w -o $(EXEC)
 FEND = -framework accelerate
 endif
@@ -26,21 +26,22 @@ WITH_SECOND = 1
 endif
 
 
-COM = ../../src/Common
-HELM = ../../src/Helmholtz
+SRC = ../../src
+UTILS_DIR = ../../utils
+XTRI_DIR = ../../xtri/src
+YTRI_DIR = ../../ytri/src
 
 
 .PHONY: all clean list
 
-SOURCES =  test_cubeintrouts.f \
-  $(COM)/prini_new.f \
-  $(COM)/legeexps.f \
-  $(COM)/legetens.f \
-  $(COM)/hkrand.f \
-  $(COM)/dlaran.f \
-  $(COM)/cubeintrouts2.f \
-  $(COM)/aquad.f \
-  $(HELM)/h3dtab_brute.f \
+SOURCES =  test_quadintrouts_grad.f \
+  $(SRC)/Common/prini_new.f \
+  $(SRC)/Common/legeexps.f \
+  $(SRC)/Common/legetens.f \
+  $(SRC)/Common/squarearbq.f \
+  $(SRC)/Common/hkrand.f \
+  $(SRC)/Common/dlaran.f \
+  $(SRC)/Common/quadintrouts.f \
 
 ifeq ($(WITH_SECOND),1)
 SOURCES += $(HELLSKITCHEN)/Common/second-r8.f

@@ -50,7 +50,7 @@ YTRI_DIR = ../../ytri/src
 
 .PHONY: all clean list
 
-SOURCES =  test_opt_h3dtabref.f \
+SOURCES =  test_opt_h3dtabref_grad.f \
   $(SRC)/Common/prini_new.f \
   $(SRC)/Common/legeexps.f \
   $(SRC)/Common/legetens.f \

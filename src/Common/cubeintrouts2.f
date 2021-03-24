@@ -5,6 +5,12 @@ c
 c           ccubeints_adap - completely adaptive integration
 c                       for the quad patch
 c
+c           ccubeints_split8int_adap - first split integral into
+c              8 cubes given a point inside the cube, 
+c              followed by adaptive integration
+c              on each of the individual cubes
+c        
+c
 c
 c         We integrate against legendre polynomials on the standard
 c          patch [-1,1]^3
@@ -228,7 +234,357 @@ c
 
       return
       end
+c
+c
+c
+c
+c
+c
+c
 
+      subroutine ccubeints_split8int_adap(eps,
+     1     norder,ttype,npols,xyzsplit,ntarg,xyztarg,ncmax,
+     3     fker,dpars,zpars,ipars,nqorder,cintvals)
+
+c
+c       this subroutine computes the integrals
+c
+c       \int_{[-1,1]^3} K(x_{i},y) P_{n}(y_{1}) P_{m}(y_{2})P_{m}(y_{3}) 
+c          dy \, ,
+c
+c        P_{n}(y) are Legendre polynomials on [-1,1]
+c
+c        using adaptive integration on 8 cubes
+c        which meet at the point xyzsplit, no precomputation
+c        and storage requirements
+c
+c
+c        input arguments:
+c        eps:     requested precision 
+c
+c        norder: order of polynomials on the patch 
+c        npols = norder*norder*norder if (type=f)
+c                norder*(norder+1)*(norder+2)/6 if(type=t)
+c        xyzsplit(3): location to split the cube into 8
+c
+c        ttype = total degree ('t') or full degree ('f') 
+c          polynomials to be integrated
+c
+c        ntarg - total number of target points
+c        xyztarg(3,ntarg) - location of target points 
+c        ncmax - max number of cubes in adaptive integration 
+c        fker - function handle for evaluating the kernel k
+c 
+c               expected calling sequence
+c               fker(x,y,dpars,zpars,ipars,f)
+c               x \in \mathbb{R}^{3}, y \in \mathbb{R}^{3}
+c               the output is complex *16 
+
+c         dpars(*) - real parameters for the fker routine
+c         zpars(*) - complex parameters for the fker routine
+c         ipars(*) - integer parameters for the fker routine
+c         nqorder - order of quadrature nodes on each subquad
+c                   to be used
+c
+c         output:
+c
+c         cintvals(npols,ntarg) - integrals at all targets
+c                                  for all tensor product
+c                                  legendre polynomials
+c
+c
+c
+      implicit none
+
+c
+cc     calling sequence variables
+c
+      real *8 eps
+      integer norder,npols
+      
+      integer ntarg
+      real *8 xyztarg(3,ntarg),xyzsplit(3)
+      
+      external fker
+      real *8 dpars(*)
+      complex *16 zpars(*)
+      integer ipars(*)
+
+      integer nqorder
+
+      integer ncmax
+
+      complex *16 cintvals(npols,ntarg)
+      complex *16, allocatable :: cinttmp(:,:)
+
+      character ttype
+
+c
+c       tree variables
+c
+      integer nlmax,ltree
+      real *8, allocatable :: tvs(:,:,:),da(:)
+      integer, allocatable :: ichild_start(:)
+
+      integer ncube,nlev,icube,istart,i,j,k
+      integer ier,itarg,jj,jstart,npts
+      integer iqquad,ii
+
+
+      integer npmax
+
+      real *8, allocatable :: uvsq(:,:),wts(:),uvtmp(:,:)
+      real *8, allocatable :: umattmp(:,:),vmattmp(:,:)
+      integer nqpols
+      real *8, allocatable :: sigvals(:,:)
+      real *8, allocatable :: uvvals(:,:),qwts(:)
+      integer itmp
+
+      character *1 transa,transb
+      real *8 alpha,beta,ra
+      integer lda,ldb,ldc
+      real *8 u, v,eps_use
+      integer ldu, ldv, itype,ndeg,l
+      
+c
+c       for each quad, we just store three pieces
+c       of info
+c         quad vertices
+c         area of quad
+c         ichild_start = index for first child, 
+c         
+c
+      allocate(ichild_start(ncmax),tvs(3,4,ncmax))
+      allocate(da(ncmax))
+      allocate(cinttmp(npols,ntarg))
+c
+c       get quadrature nodes and weights on the base quad
+c       based on quadrature type
+c
+
+      nqpols = nqorder*nqorder*nqorder
+      allocate(uvsq(3,nqpols),wts(nqpols))
+
+      do itarg=1,ntarg
+        do l=1,npols
+          cintvals(l,itarg) = 0
+
+        enddo
+      enddo
+
+      ldu = 1
+      ldv = 1
+      itype = 1
+      call legetens_exps_3d(itype,nqorder,ttype,uvsq,u,ldu,v,ldv,wts) 
+
+
+      allocate(uvtmp(3,nqpols))
+     
+      npmax = ncmax*nqpols
+      allocate(sigvals(npols,nqpols))
+      allocate(uvvals(3,nqpols),qwts(nqpols))
+c
+c
+c        quad vertices nomenclature
+c
+c       v3
+c        ________ 
+c        |       |
+c        |       |
+c        |       |
+c        ---------
+c        v1       v2
+c
+c   and v4 is the +len in z direction from v1
+c
+c
+
+
+
+
+
+       
+      nlmax = 20 
+      do icube = 1,8
+
+        do i=1,ncmax
+          ichild_start(i) = -1
+          da(i) = 0
+          do j=1,3
+            do k=1,2
+              tvs(k,j,i) = 0
+            enddo
+          enddo
+        enddo
+
+        if(icube.eq.1) then
+          tvs(1,1,1) = -1
+          tvs(2,1,1) = -1
+          tvs(3,1,1) = -1
+
+          tvs(1,2,1) = xyzsplit(1)
+          tvs(2,2,1) = -1
+          tvs(3,2,1) = -1
+
+          tvs(1,3,1) = -1
+          tvs(2,3,1) = xyzsplit(2)
+          tvs(3,3,1) = -1
+
+          tvs(1,4,1) = -1
+          tvs(2,4,1) = -1
+          tvs(3,4,1) = xyzsplit(3)
+        else if(icube.eq.2) then
+          tvs(1,1,1) = xyzsplit(1)
+          tvs(2,1,1) = -1
+          tvs(3,1,1) = -1
+
+          tvs(1,2,1) = 1
+          tvs(2,2,1) = -1
+          tvs(3,2,1) = -1
+
+          tvs(1,3,1) = xyzsplit(1)
+          tvs(2,3,1) = xyzsplit(2)
+          tvs(3,3,1) = -1
+
+          tvs(1,4,1) = xyzsplit(1)
+          tvs(2,4,1) = -1
+          tvs(3,4,1) = xyzsplit(3)
+        else if(icube.eq.3) then
+          tvs(1,1,1) = -1
+          tvs(2,1,1) = xyzsplit(2)
+          tvs(3,1,1) = -1
+
+          tvs(1,2,1) = xyzsplit(1)
+          tvs(2,2,1) = xyzsplit(2)
+          tvs(3,2,1) = -1
+
+          tvs(1,3,1) = -1
+          tvs(2,3,1) = 1 
+          tvs(3,3,1) = -1
+
+          tvs(1,4,1) = -1
+          tvs(2,4,1) = xyzsplit(2)
+          tvs(3,4,1) = xyzsplit(3)
+        else if(icube.eq.4) then
+          tvs(1,1,1) = xyzsplit(1)
+          tvs(2,1,1) = xyzsplit(2)
+          tvs(3,1,1) = -1
+
+          tvs(1,2,1) = 1 
+          tvs(2,2,1) = xyzsplit(2)
+          tvs(3,2,1) = -1
+
+          tvs(1,3,1) = xyzsplit(1)
+          tvs(2,3,1) = 1 
+          tvs(3,3,1) = -1
+
+          tvs(1,4,1) = xyzsplit(1)
+          tvs(2,4,1) = xyzsplit(2)
+          tvs(3,4,1) = xyzsplit(3)
+
+        else if(icube.eq.5) then
+          tvs(1,1,1) = -1
+          tvs(2,1,1) = -1
+          tvs(3,1,1) = xyzsplit(3)
+
+          tvs(1,2,1) = xyzsplit(1)
+          tvs(2,2,1) = -1
+          tvs(3,2,1) = xyzsplit(3)
+
+          tvs(1,3,1) = -1
+          tvs(2,3,1) = xyzsplit(2)
+          tvs(3,3,1) = xyzsplit(3)
+
+          tvs(1,4,1) = -1
+          tvs(2,4,1) = -1
+          tvs(3,4,1) = 1 
+        else if(icube.eq.6) then
+          tvs(1,1,1) = xyzsplit(1)
+          tvs(2,1,1) = -1
+          tvs(3,1,1) = xyzsplit(3)
+
+          tvs(1,2,1) = 1
+          tvs(2,2,1) = -1
+          tvs(3,2,1) = xyzsplit(3)
+
+          tvs(1,3,1) = xyzsplit(1)
+          tvs(2,3,1) = xyzsplit(2)
+          tvs(3,3,1) = xyzsplit(3)
+
+          tvs(1,4,1) = xyzsplit(1)
+          tvs(2,4,1) = -1
+          tvs(3,4,1) = 1 
+        else if(icube.eq.7) then
+          tvs(1,1,1) = -1
+          tvs(2,1,1) = xyzsplit(2)
+          tvs(3,1,1) = xyzsplit(3) 
+
+          tvs(1,2,1) = xyzsplit(1)
+          tvs(2,2,1) = xyzsplit(2)
+          tvs(3,2,1) = xyzsplit(3) 
+
+          tvs(1,3,1) = -1
+          tvs(2,3,1) = 1 
+          tvs(3,3,1) = xyzsplit(3) 
+
+          tvs(1,4,1) = -1
+          tvs(2,4,1) = xyzsplit(2)
+          tvs(3,4,1) = 1 
+        else if(icube.eq.8) then
+          tvs(1,1,1) = xyzsplit(1)
+          tvs(2,1,1) = xyzsplit(2)
+          tvs(3,1,1) = xyzsplit(3)
+
+          tvs(1,2,1) = 1 
+          tvs(2,2,1) = xyzsplit(2)
+          tvs(3,2,1) = xyzsplit(3)
+
+          tvs(1,3,1) = xyzsplit(1)
+          tvs(2,3,1) = 1 
+          tvs(3,3,1) = xyzsplit(3) 
+
+          tvs(1,4,1) = xyzsplit(1)
+          tvs(2,4,1) = xyzsplit(2)
+          tvs(3,4,1) = 1 
+        endif
+        
+        da(1) = (tvs(1,2,1)-tvs(1,1,1))*(tvs(2,3,1)-tvs(2,1,1))*
+     1        (tvs(3,4,1)-tvs(3,1,1))/8
+        eps_use = eps*sqrt(da(1))
+
+        do itarg=1,ntarg
+          ncube = 1
+c
+c        intialize sigvals for root quad
+c
+
+          ndeg = norder-1
+          call mapuv_cube(tvs(1,1,1),nqpols,uvsq,uvvals)
+          do i=1,nqpols
+            call legetens_pols_3d(uvvals(1,i),ndeg,ttype,sigvals(1,i))
+            qwts(i) = wts(i)*da(1)
+          enddo
+          do l=1,npols
+            cinttmp(l,itarg) = 0
+          enddo
+        
+          call cubeadap(eps_use,nqorder,nqpols,nlmax,ncmax,ncube,
+     1      ichild_start,tvs,da,uvsq,wts, 
+     1      norder,ttype,npols,npmax,uvvals,qwts,sigvals,
+     1      xyztarg(1,itarg),
+     3      fker,dpars,zpars,ipars,cinttmp(1,itarg))
+          do l=1,npols
+            cintvals(l,itarg) = cintvals(l,itarg) + cinttmp(l,itarg)
+
+          enddo
+        enddo 
+      enddo
+
+
+      return
+      end
+c
+c
 c
 c
 c

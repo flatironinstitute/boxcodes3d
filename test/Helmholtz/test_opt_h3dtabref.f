@@ -1,5 +1,6 @@
       implicit real *8 (a-h,o-z)
-      real *8 tts(3,3,2),errm_rel1(3,2),errm_rel2(3,2),errm_abs(3,2)
+      real *8 tts(3,100,2),errm_rel1(100,2),errm_rel2(100,2)
+      real *8 errm_abs(100,2)
       real *8 tt3d(3),err_print(3)
       complex *16 zk, im, zero, one
       complex *16, allocatable :: tab_ref(:,:),tab(:,:),tab2(:,:)
@@ -10,7 +11,8 @@
       character *100 fname
       data im / (0.0d0,1.0d0) /
       data zero / (0.0d0,0.0d0) /
-      data one / (1.0d0,0.0d0) /            
+      data one / (1.0d0,0.0d0) /           
+      external h3d_vslp
       
       call prini(6,13)
       
@@ -46,24 +48,33 @@ c
 c
 c
       ifgen = 0
+      izk = 4
       if(ifgen.eq.1) then
-         call h3dtabp_ref_brute(ndeg,zk,tab_ref,ntarg0)
-         do i=1,npol3
-           do j=1,ntarg0
-              write(33,*) real(tab_ref(j,i)),imag(tab_ref(j,i))
-           enddo
-         enddo
+         if(izk.eq.1) zk = 1.6d0
+         if(izk.eq.2) zk = 0.16d0
+         if(izk.eq.3) zk = im*1.6d0
+         if(izk.eq.4) zk = 5.0d0
+         print *, "here"
+         print *, "zk=",zk
+         call h3dtabp_ref_brute_fker(ndeg,tab_ref,ntarg0,h3d_vslp,
+     1      dpars,zk,ipars)
+          write(fname,'(a,i2.2,a,i1,a)') 'tabref_',n,'_izk_',izk,
+     1       'new.dat'
+          open(unit=33,file=trim(fname),action='readwrite',
+     1       form='unformatted',access='stream')
+         write(unit=33) tab_ref
          close(33)
          stop
       endif
 
       if(igen.ne.1) then
 
-        do izk=1,3
+        do izk=4,4
 
           if(izk.eq.1) zk = 1.6d0
           if(izk.eq.2) zk = 0.16d0
           if(izk.eq.3) zk = im*1.6d0
+          if(izk.eq.4) zk = 5.0d0
           write(fname,'(a,i2.2,a,i1,a)') 'tabref_',n,'_izk_',izk,
      1       'new.dat'
           open(unit=33,file=trim(fname),action='readwrite',
@@ -74,7 +85,7 @@ c
 
           close(33)
 
-          ifsphere = .true.
+          ifsphere = .false.
           if(ifsphere) ndeg2 = 20
           if(.not.ifsphere) ndeg2 = ndeg
           
@@ -95,7 +106,8 @@ c
 
           call cpu_time(t1)
 C$           t1 = omp_get_wtime()          
-          call h3dtabp_ref_brute_new(ndeg,zk,tol,tab2,ntarg0)
+          call h3dtabp_ref_brute_new_fker(ndeg,tol,tab2,ntarg0,
+     1        h3d_vslp,dpars,zk,ipars)
           call cpu_time(t2)
 C$           t2 = omp_get_wtime()          
 cc     
@@ -183,11 +195,11 @@ cc
         call prin2(' *',i,0)
         call prin2(' *',i,0)
 
-        call prin2('max errors relative 1=*',errm_rel1,6)
-        call prin2('max errors relative 2=*',errm_rel2,6)
-        call prin2('max errors absolute=*',errm_abs,6)
-        call prin2('time taken 2d=*',tts(:,2,:),6)
-        call prin2('time taken 3d adap=*',tt3d,3)
+        call prin2('max errors relative 1=*',errm_rel1(4,1:2),2)
+        call prin2('max errors relative 2=*',errm_rel2(4,1:2),2)
+        call prin2('max errors absolute=*',errm_abs(4,1:2),2)
+        call prin2('time taken 2d=*',tts(:,4,:),6)
+        call prin2('time taken 3d adap=*',tt3d(4),1)
         stop
       endif
 

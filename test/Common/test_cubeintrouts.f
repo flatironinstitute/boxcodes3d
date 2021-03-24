@@ -96,6 +96,29 @@ C$      t2 = omp_get_wtime()
         enddo
         call prin2('errors=*',errs,npols)
       enddo
+      print *, ""
+      print *, ""
+      print *, "Starting split8int adap" 
+
+      do i=1,ntarg
+        do j=1,npols
+          pot(j,i) = 0
+        enddo
+      enddo
+      call ccubeints_split8int_adap(eps,norder,type,npols,
+     1   xyztarg(1,2),ntarg,xyztarg,
+     1   ncubemax,fker,dpars,zk,ipars,nqorder,pot)
+
+      do i=1,ntarg
+        print *, "itarg =", i
+        print *, ""
+        print *, ""
+        do j=1,npols
+          errs(j) = abs(pot(j,i)-pot_ex(j,i)) 
+        enddo
+        call prin2('errors=*',errs,npols)
+      enddo
+      
 
       stop
       end
