@@ -68,8 +68,7 @@ SOURCES =  test_h3danti_compare.f \
   $(SRC)/Common/loadsyms3d.f \
   $(SRC)/Helmholtz/lommel.f \
   $(SRC)/Common/aquad.f \
-  $(SRC)/Helmholtz/h3dtab.f \
-  $(SRC)/Helmholtz/h3dtab2.f \
+  $(SRC)/Helmholtz/h3danti.f \
   $(SRC)/Helmholtz/h3dtab_brute.f
 
 

@@ -66,7 +66,8 @@ c$    t2 = omp_get_wtime()
       allocate(res1(npolout,npol),res2(npolout,npol))
 
       call cpu_time(t1)
-c$    t1 = omp_get_wtime()      
+c$    t1 = omp_get_wtime()
+c$omp parallel do private(j,nd,i)      
       do j = 1,npol
          nd = 2
          call legetens_lape_3d(nd,ndegout,type,ahmat1(1,j),res1(1,j))
@@ -77,6 +78,7 @@ c$    t1 = omp_get_wtime()
             res2(i,j) = res2(i,j) + ahmat2(i,j)*zk**2
          enddo
       enddo
+c$omp end parallel do      
       call cpu_time(t2)
 c$    t2 = omp_get_wtime()            
       

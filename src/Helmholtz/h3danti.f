@@ -13,6 +13,191 @@ c
 c     
 c     
 
+
+
+      subroutine h3danti_form(ndeg,nup,type,zk,ahmat,ldahmat,derrmax,
+     1     errsup,errsdown)
+c
+c     This routine forms the coefficients of an anti-helmholtzian
+c     for each polynomial in the specified basis by computing both
+c     upward (with nup steps) and downward recurrences and choosing
+c     the option with the best backward error.
+c      
+c      
+c     input:
+c
+c     ndeg - integer
+c        the degree of the basis
+c     nup - the number of upward iterations to run 
+c     type - character
+c        the type of the basis (for now, total degree
+c        is the only implemented option)
+c        type = 't', total degree
+c        type = 'f', full tensor
+c     zk - complex double
+c        Helmholtz parameter
+c     ldahmat - integer
+c         leading dimension of ahmat, must be at least 
+c         the number of tensor polynomials of degree ndeg+2*nup
+c         see legetens_npol_3d
+c      
+c     output:
+c    
+c     ahmat - complex array (ldahmat,*)
+c        column i gives the coefficients of the anti-Helmholtzian of
+c        the ith function in the polynomial basis determined by ndeg
+c        and type. The coefficients are in the poylnomial basis
+c        determined by ndegout=ndeg+2*nup and type.
+c     derrmax - real *8 worst case root mean square (backward) error
+c        for the output coefficients (i.e. the difference between
+c        spectral Helmholtz operator applied to the jth column of
+c     coefficients and the standard basis vector e_j)
+c     errsup - real *8 array (number of polynomials for ndeg and type)
+c        error (including stability fudge factor) for upward
+c        recurrence
+c     errsdown - real *8 array (number of polynomials for ndeg and type)
+c        error (including stability fudge factor) for downward
+c        recurrence
+      
+      
+
+      implicit real *8 (a-h,o-z)
+      complex *16 ahmat(ldahmat,*)
+      real *8 errsup(*), errsdown(*)
+      complex *16, allocatable :: ahmatup(:,:), ahmatdown(:,:)
+      complex *16, allocatable :: resup(:,:), resdown(:,:)      
+      integer, allocatable :: ind2p(:,:), ind2pout(:,:)
+      integer, allocatable :: ip2ind(:,:,:), ip2indout(:,:,:)      
+      
+      real *8, allocatable :: sumsup(:), sumsdown(:), stabup(:),
+     1     stabdown(:)
+
+      complex *16 im, zero, one, zk
+      data im / (0.0d0,1.0d0) /
+      data zero / (0.0d0,0.0d0) /
+      data one / (1.0d0,0.0d0) /
+
+      character type
+      
+      ndegout = ndeg + nup*2
+      
+      call legetens_npol_3d(ndeg,type,npol)
+      call legetens_npol_3d(ndegout,type,npolout)
+
+      allocate(ind2p(3,npol),ind2pout(3,npolout))
+      allocate(ip2ind(0:ndeg,0:ndeg,0:ndeg),
+     1     ip2indout(0:ndegout,0:ndegout,0:ndegout))
+
+      call legetens_ind2pow_3d(ndeg,type,ind2p)
+      call legetens_ind2pow_3d(ndegout,type,ind2pout)      
+      call legetens_pow2ind_3d(ndeg,type,ip2ind)
+      call legetens_pow2ind_3d(ndegout,type,ip2indout)      
+      allocate(ahmatup(npolout,npol),ahmatdown(npol,npol))
+
+      call h3danti_legeup(ndeg,nup,type,zk,ahmatup,npolout)
+      call h3danti_legedownfast(ndeg,type,zk,ahmatdown,npol)
+
+c     
+      allocate(resup(npolout,npol),resdown(npol,npol))
+
+c$omp parallel do private(i,ndc,j)
+      do i = 1,npol
+         ndc = 2
+         call legetens_lape_3d(ndc,ndeg,type,ahmatdown(1,i),
+     1        resdown(1,i))
+         call legetens_lape_3d(ndc,ndegout,type,ahmatup(1,i),
+     1        resup(1,i))
+
+         do j = 1,npol
+            resdown(j,i) = resdown(j,i)+zk**2*ahmatdown(j,i)
+         enddo
+         do j = 1,npolout
+            resup(j,i) = resup(j,i)+zk**2*ahmatup(j,i)
+         enddo
+      enddo
+c$omp end parallel do      
+
+
+      
+c     determine backward error (l2)
+
+      allocate(sumsup(npol),sumsdown(npol),stabup(npol),stabdown(npol))
+
+c$omp parallel do private(i,iin,jin,kin,iout,jout,kout,j)      
+      do i = 1,npol
+         sumsup(i) = 0
+         sumsdown(i) = 0
+         stabup(i) = 0
+         stabdown(i) = 0
+         iin = ind2p(1,i)
+         jin = ind2p(2,i)
+         kin = ind2p(3,i)
+         do j = 1,npolout
+            iout = ind2pout(1,j)
+            jout = ind2pout(2,j)
+            kout = ind2pout(3,j)
+            if (iin .eq. iout .and. jin .eq. jout
+     1           .and. kin .eq. kout) then
+               sumsup(i) = sumsup(i) + abs(one-resup(j,i))**2
+            else
+               sumsup(i) = sumsup(i) + abs(resup(j,i))**2
+            endif
+            stabup(i) = stabup(i)+abs(ahmatup(j,i))**2
+         enddo
+
+         do j = 1,npol
+            if (j .eq. i) then
+               sumsdown(i) = sumsdown(i) + abs(one-resdown(j,i))**2
+            else
+               sumsdown(i) = sumsdown(i) + abs(resdown(j,i))**2
+            endif
+            stabdown(i) = stabdown(i)+abs(ahmatdown(j,i))**2
+         enddo
+
+         sumsdown(i) = sqrt(sumsdown(i)/npol)
+         sumsup(i) = sqrt(sumsup(i)/npol)
+         stabup(i) = sqrt(stabup(i)/npol)
+         stabdown(i) = sqrt(stabdown(i)/npol)         
+      enddo
+c     $end parallel do
+
+
+c     choose best for each input poly and get max error
+
+      derrmax = 0.0d0
+      epsfac = 2d-16
+      
+c$omp parallel do private(i,j,i1,i2,i3,jout) reduction(max:derrmax)      
+      do i = 1,npol
+         do j = 1,npolout
+            ahmat(j,i) = 0
+         enddo
+
+         errdown = sumsdown(i) + stabdown(i)*epsfac
+         errup = stabup(i)*epsfac+sumsup(i)
+         errsdown(i) = errdown
+         errsup(i) = errup         
+         if (errdown .lt. errup) then
+            do j = 1,npol
+               i1 = ind2p(1,j)
+               i2 = ind2p(2,j)
+               i3 = ind2p(3,j)
+               jout = ip2indout(i1,i2,i3)
+               ahmat(jout,i) = ahmatdown(j,i)
+            enddo
+            derrmax = max(derrmax,sumsdown(i)+epsfac*stabdown(i))            
+         else
+            do j = 1,npolout
+               ahmat(j,i) = ahmatup(j,i)
+            enddo
+            derrmax = max(derrmax,sumsup(i)+epsfac*stabup(i)) 
+         endif
+
+      enddo
+c$omp end parallel do      
+
+      return
+      end
       
       subroutine h3danti_legedown(ndeg,type,zk,ahmat,ldahmat)
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -380,7 +565,7 @@ c     power up to get necessary mutliples of lap2d and Ixx matrix
          do j = 1,npol2d
             lapmats2d(j,i,0) = 0.0d0
             if (j .eq. i) lapmats2d(j,i,0) = 1.0d0
-            lapmats2d(j,i,1) = temp1(j,i)
+            if (niter .gt. 0) lapmats2d(j,i,1) = temp1(j,i)
          enddo
       enddo
 
@@ -655,7 +840,7 @@ c     power up to get necessary mutliples of dxx and Ixx matrix
          do j = 0,ndeg
             dxxs(j,i,0) = 0.0d0
             if (j .eq. i) dxxs(j,i,0) = 1.0d0
-            dxxs(j,i,1) = temp1(j,i)
+            if (niter .gt. 0) dxxs(j,i,1) = temp1(j,i)
          enddo
       enddo
 

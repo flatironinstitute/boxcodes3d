@@ -164,9 +164,6 @@ c     combines dimension permutation and flip information into
 c     index permutation (for target points) and coefficient
 c     permutation (for source densities) information. also returns
 c     overall sign flips per coefficient of a source density
-c
-c     TODO: coefficient permutations and sign flips
-c
 c            
       implicit real*8 (a-h,o-z)
       dimension idimp(3), iflip(3), ipperm(*), icperm(*)
@@ -203,6 +200,292 @@ c
             enddo
          enddo
       enddo
+
+      if (cp .eq. 't' .or. cp .eq. 'T') then
+c     total degree order
+         ii = 0
+         do iz = 1,nq
+            do iy = 1,nq+1-iz
+               do ix = 1,nq+1-iy+1-iz
+                  ii = ii+1
+                  ilist(ix,iy,iz) = ii
+               enddo
+            enddo
+         enddo
+
+         ii = 0
+         do iz = 1,nq
+            do iy = 1,nq+1-iz
+               do ix = 1,nq+1-iy+1-iz
+                  ii = ii+1
+                  itemp(1) = ix
+                  itemp(2) = iy
+                  itemp(3) = iz
+                  jx = itemp(idimp(1))
+                  jy = itemp(idimp(2))
+                  jz = itemp(idimp(3))
+
+                  jj = ilist(jx,jy,jz)
+                  
+                  icperm(ii) = jj
+                  icsign(ii) = 
+     1                 (iflip(idimp(1)))**(jx-1)*
+     2                 (iflip(idimp(2)))**(jy-1)*
+     2                 (iflip(idimp(3)))**(jz-1)
+               enddo
+            enddo
+         enddo
+      endif
+      return
+      end
+      
+      subroutine buildperm3dpgh(idimp,iflip,nq,cp,ipperm,ipgradperm,
+     1     iphessperm,ipgradsign,iphesssign,icperm,icsign)
+c
+c
+c     combines dimension permutation and flip information into
+c     index permutation (for target points) and coefficient
+c     permutation (for source densities) information. also returns
+c     overall sign flips per coefficient of a source density
+c     and permutations and sign flips for the gradient/hessian
+c
+c            
+      implicit real*8 (a-h,o-z)
+      dimension idimp(3), iflip(3), ipperm(*), icperm(*)
+      dimension ipgradperm(3), iphessperm(6)
+      dimension ipgradsign(3), iphesssign(6)      
+      dimension icsign(*)
+      dimension indmap(nq,3), iskip(3), ilist(nq,nq,nq)
+      dimension itemp(3)
+      dimension iphessref(3,3)
+      character cp
+
+c     gradient permutation is just dimension permutation
+
+      ipgradperm(1) = idimp(1)
+      ipgradsign(1) = iflip(idimp(1))      
+      ipgradperm(2) = idimp(2)
+      ipgradsign(2) = iflip(idimp(2))      
+      ipgradperm(3) = idimp(3)
+      ipgradsign(3) = iflip(idimp(3))      
+
+c     hessian order is xx,yy,zz,xy,xz,yz
+
+c     write map from derivative index to hessian index
+
+      iphessref(1,1) = 1
+      iphessref(2,2) = 2
+      iphessref(3,3) = 3
+      iphessref(1,2) = 4
+      iphessref(2,1) = 4
+      iphessref(1,3) = 5
+      iphessref(3,1) = 5
+      iphessref(2,3) = 6
+      iphessref(3,2) = 6
+
+c     convert dimension permutation to hessian permutation and sign
+c     information
+
+      i1 = idimp(1)
+      i2 = idimp(1)
+      iphessperm(1) = iphessref(i1,i2)
+      iphesssign(1) = 1
+      i1 = idimp(2)
+      i2 = idimp(2)
+      iphessperm(2) = iphessref(i1,i2)
+      iphesssign(2) = 1
+      i1 = idimp(3)
+      i2 = idimp(3)
+      iphessperm(3) = iphessref(i1,i2)
+      iphesssign(3) = 1
+      i1 = idimp(1)
+      i2 = idimp(2)
+      iphessperm(4) = iphessref(i1,i2)
+      iphesssign(4) = iflip(i1)*iflip(i2)
+      i1 = idimp(1)
+      i2 = idimp(3)
+      iphessperm(5) = iphessref(i1,i2)
+      iphesssign(5) = iflip(i1)*iflip(i2)     
+      i1 = idimp(2)
+      i2 = idimp(3)
+      iphessperm(6) = iphessref(i1,i2)
+      iphesssign(6) = iflip(i1)*iflip(i2)           
+
+
+c     make point permutation
+      
+      iskip(1) = 1
+      iskip(2) = nq
+      iskip(3) = nq**2
+
+      do ii = 1,3
+         do jj = 1,nq
+            if (iflip(ii) .eq. -1) then
+               indmap(jj,ii) = nq-jj+1
+            else
+               indmap(jj,ii) = jj
+            endif
+         enddo
+      enddo
+
+      do iz = 1,nq
+         jz = indmap(iz,idimp(3))
+         do iy = 1,nq
+            jy = indmap(iy,idimp(2))
+            do ix = 1,nq
+               jx = indmap(ix,idimp(1))
+               ind1 = (iz-1)*nq**2 + (iy-1)*nq + ix
+               ind2 = (jz-1)*iskip(idimp(3)) +
+     1              (jy-1)*iskip(idimp(2)) +
+     1              (jx-1)*iskip(idimp(1)) + 1
+               ipperm(ind1) = ind2
+            enddo
+         enddo
+      enddo
+
+      if (cp .eq. 't' .or. cp .eq. 'T') then
+c     total degree order
+         ii = 0
+         do iz = 1,nq
+            do iy = 1,nq+1-iz
+               do ix = 1,nq+1-iy+1-iz
+                  ii = ii+1
+                  ilist(ix,iy,iz) = ii
+               enddo
+            enddo
+         enddo
+
+         ii = 0
+         do iz = 1,nq
+            do iy = 1,nq+1-iz
+               do ix = 1,nq+1-iy+1-iz
+                  ii = ii+1
+                  itemp(1) = ix
+                  itemp(2) = iy
+                  itemp(3) = iz
+                  jx = itemp(idimp(1))
+                  jy = itemp(idimp(2))
+                  jz = itemp(idimp(3))
+
+                  jj = ilist(jx,jy,jz)
+                  
+                  icperm(ii) = jj
+                  icsign(ii) = 
+     1                 (iflip(idimp(1)))**(jx-1)*
+     2                 (iflip(idimp(2)))**(jy-1)*
+     2                 (iflip(idimp(3)))**(jz-1)
+               enddo
+            enddo
+         enddo
+      endif
+         
+         
+      return
+      end
+      
+      
+      subroutine gbuildperm3dpgh(idimp,iflip,ndepth,npt,ipt2depth,
+     2     idepth2pt,nq,cp,ipperm,ipgradperm,iphessperm,ipgradsign,
+     3     iphesssign,icperm,icsign)
+c
+c     Like buildperm3dpgh except it also works for non-tensor
+c     grids which nonetheless have symmetry under permutations of
+c     x,y, and z coordinates and flipping these dimensions
+c     
+c      
+c     combines dimension permutation and flip information as well
+c     as point depth information into
+c     index permutation (for target points) and coefficient
+c     permutation (for source densities) information. also returns
+c     overall sign flips per coefficient of a source density
+c     and permutations and sign flips for the gradient/hessian
+c
+c            
+      implicit real*8 (a-h,o-z)
+      dimension ipt2depth(3,npt),idepth2pt(ndepth,ndepth,ndepth)
+      dimension idimp(3), iflip(3), ipperm(*), icperm(*)
+      dimension ipgradperm(3), iphessperm(6)
+      dimension ipgradsign(3), iphesssign(6)      
+      dimension icsign(*)
+      dimension iskip(3), ilist(nq,nq,nq)
+      dimension itemp(3)
+      dimension iphessref(3,3)
+      character cp
+
+c     gradient permutation is just dimension permutation
+
+      ipgradperm(1) = idimp(1)
+      ipgradsign(1) = iflip(idimp(1))      
+      ipgradperm(2) = idimp(2)
+      ipgradsign(2) = iflip(idimp(2))      
+      ipgradperm(3) = idimp(3)
+      ipgradsign(3) = iflip(idimp(3))      
+
+c     hessian order is xx,yy,zz,xy,xz,yz
+
+c     write map from derivative index to hessian index
+
+      iphessref(1,1) = 1
+      iphessref(2,2) = 2
+      iphessref(3,3) = 3
+      iphessref(1,2) = 4
+      iphessref(2,1) = 4
+      iphessref(1,3) = 5
+      iphessref(3,1) = 5
+      iphessref(2,3) = 6
+      iphessref(3,2) = 6
+
+c     convert dimension permutation to hessian permutation and sign
+c     information
+
+      i1 = idimp(1)
+      i2 = idimp(1)
+      iphessperm(1) = iphessref(i1,i2)
+      iphesssign(1) = 1
+      i1 = idimp(2)
+      i2 = idimp(2)
+      iphessperm(2) = iphessref(i1,i2)
+      iphesssign(2) = 1
+      i1 = idimp(3)
+      i2 = idimp(3)
+      iphessperm(3) = iphessref(i1,i2)
+      iphesssign(3) = 1
+      i1 = idimp(1)
+      i2 = idimp(2)
+      iphessperm(4) = iphessref(i1,i2)
+      iphesssign(4) = iflip(i1)*iflip(i2)
+      i1 = idimp(1)
+      i2 = idimp(3)
+      iphessperm(5) = iphessref(i1,i2)
+      iphesssign(5) = iflip(i1)*iflip(i2)     
+      i1 = idimp(2)
+      i2 = idimp(3)
+      iphessperm(6) = iphessref(i1,i2)
+      iphesssign(6) = iflip(i1)*iflip(i2)           
+
+
+c     make point permutation
+
+
+      do i = 1,npt
+         ix = ipt2depth(1,i)
+         iy = ipt2depth(2,i)
+         iz = ipt2depth(3,i)
+         itemp(1) = ix
+         itemp(2) = iy
+         itemp(3) = iz
+         jx = itemp(idimp(1))
+         jy = itemp(idimp(2))
+         jz = itemp(idimp(3))
+         if (iflip(idimp(1)) .eq. -1) jx = ndepth-jx+1
+         if (iflip(idimp(2)) .eq. -1) jy = ndepth-jy+1
+         if (iflip(idimp(3)) .eq. -1) jz = ndepth-jz+1
+
+         ipperm(i) = idepth2pt(jx,jy,jz)
+      enddo
+
+c     make column permutation based on polynomial ordering
+c     type
 
       if (cp .eq. 't' .or. cp .eq. 'T') then
 c     total degree order

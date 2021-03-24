@@ -28,7 +28,7 @@
       enddo
 
       type = 't'
-      ndeg = 16
+      ndeg = 15
       call legetens_npol_3d(ndeg,type,npol)
 
       call prinf('npol *',npol,1)

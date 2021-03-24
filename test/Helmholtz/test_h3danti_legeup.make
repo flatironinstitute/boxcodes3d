@@ -54,22 +54,9 @@ SOURCES =  test_h3danti_legeup.f \
   $(SRC)/Common/prini_new.f \
   $(SRC)/Common/legeexps.f \
   $(SRC)/Common/legetens.f \
-  $(SRC)/Common/squarearbq.f \
   $(SRC)/Common/hkrand.f \
   $(SRC)/Common/dlaran.f \
-  $(SRC)/Common/sphere_pol_routs.f \
-  $(SRC)/Common/ncleastsq.f \
-  $(SRC)/Common/svdpivot.f \
-  $(SRC)/Common/csvdpiv.f \
-  $(SRC)/Common/qleigen_trid.f \
-  $(SRC)/Common/yrecursion.f \
-  $(SRC)/Common/quadintrouts.f \
-  $(SRC)/Common/voltab3d.f \
-  $(SRC)/Common/loadsyms3d.f \
-  $(SRC)/Helmholtz/lommel.f \
-  $(SRC)/Common/aquad.f \
-  $(SRC)/Helmholtz/h3dtab2.f \
-  $(SRC)/Helmholtz/h3dtab_brute.f
+  $(SRC)/Helmholtz/h3danti.f
 
 
 ifeq ($(WITH_SECOND),1)
