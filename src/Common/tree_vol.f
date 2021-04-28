@@ -311,7 +311,7 @@ c
 
       real *8 rsc,ra
       integer nbloc,nbctr,nbadd,irefine,ilev,ifirstbox,ilastbox
-      integer nbtot,iii,idim
+      integer nbtot,iii,idim,iper
       
 
       nbmax = 100000
@@ -468,8 +468,8 @@ c
           allocate(fvals2(nd,npbox,nbmax))
           allocate(rintbs2(nbmax))
 
-          call tree_copy(nd,nbctr,npbox,centers,ilevel,iparent,nchild,
-     1            ichild,fvals,centers2,ilevel2,iparent2,nchild2,
+          call vol_tree_copy(nd,nbctr,npbox,centers,ilevel,iparent,
+     1            nchild,ichild,fvals,centers2,ilevel2,iparent2,nchild2,
      2            ichild2,fvals2)
           call dcopy(nbctr,rintbs,1,rintbs2,1)
 
@@ -480,7 +480,7 @@ c
           allocate(nchild(nbmax),ichild(8,nbmax),fvals(nd,npbox,nbmax))
           allocate(rintbs(nbmax))
 
-          call tree_copy(nd,nbctr,npbox,centers2,ilevel2,iparent2,
+          call vol_tree_copy(nd,nbctr,npbox,centers2,ilevel2,iparent2,
      1            nchild2,ichild2,fvals2,centers,ilevel,iparent,nchild,
      2            ichild,fvals)
           call dcopy(nbctr,rintbs2,1,rintbs,1)
@@ -526,9 +526,9 @@ c
           allocate(nchild2(nbmax),ichild2(8,nbmax))
           allocate(fvals2(nd,npbox,nbmax),rintbs2(nbmax))
 
-          call tree_copy(nd,nboxes,npbox,centers,ilevel,iparent,nchild,
-     1            ichild,fvals,centers2,ilevel2,iparent2,nchild2,
-     2            ichild2,fvals2)
+          call vol_tree_copy(nd,nboxes,npbox,centers,ilevel,iparent,
+     1         nchild,ichild,fvals,centers2,ilevel2,iparent2,nchild2,
+     2         ichild2,fvals2)
           call dcopy(nboxes,rintbs,1,rintbs2,1)
 
           deallocate(centers,ilevel,iparent,nchild,ichild,fvals,rintbs)
@@ -538,7 +538,7 @@ c
           allocate(nchild(nbmax),ichild(8,nbmax),fvals(nd,npbox,nbmax))
           allocate(rintbs(nbmax))
 
-          call tree_copy(nd,nboxes,npbox,centers2,ilevel2,iparent2,
+          call vol_tree_copy(nd,nboxes,npbox,centers2,ilevel2,iparent2,
      1          nchild2,ichild2,fvals2,centers,ilevel,iparent,nchild,
      2          ichild,fvals)
           call dcopy(nboxes,rintbs2,1,rintbs,1)
@@ -558,8 +558,10 @@ c
           enddo
         enddo
 
+        iper = 0
+
         call computecoll(nlevels,nboxes,laddr,boxsize,centers,
-     1        iparent,nchild,ichild,27,nnbors,nbors)
+     1        iparent,nchild,ichild,iper,nnbors,nbors)
 
         if(nlevels.ge.2) then
           call vol_tree_fix_lr(fun,nd,dpars,zpars,ipars,norder,npbox,
@@ -665,6 +667,7 @@ c
 
       integer i,ilev,irefine,itype,nbmax,nlmax,npbox,npc,ii
       integer ifirstbox,ilastbox,nbctr,nbloc
+      integer iper
       real *8 rsc
 
       real *8 ra
@@ -791,10 +794,10 @@ c
         enddo
       enddo
 
-
+      iper = 0
       call computecoll(nlevels,nboxes0,itree(iptr(1)),boxsize,centers,
      1        itree(iptr(3)),itree(iptr(4)),itree(iptr(5)),
-     2        27,itree(iptr(6)),itree(iptr(7)))
+     2        iper,itree(iptr(6)),itree(iptr(7)))
 
       if(nlevels.ge.2) then
          call vol_tree_fix_lr(fun,nd,dpars,zpars,ipars,norder,npbox,
@@ -1393,7 +1396,7 @@ c
 c
 c
 c
-       subroutine tree_copy(nd,nb,npb,centers,ilevel,iparent,
+       subroutine vol_tree_copy(nd,nb,npb,centers,ilevel,iparent,
      1            nchild,ichild,fvals,centers2,ilevel2,iparent2,nchild2,
      2            ichild2,fvals2)
 
@@ -1456,7 +1459,7 @@ c
       integer, allocatable :: iflag(:)
 
       integer i,j,k,l,ibox,jbox,kbox,ilev,idad,igranddad
-      integer nbloc,ict
+      integer nbloc,ict,iper
       real *8 xdis,ydis,zdis,distest
 
       external fun
@@ -1625,10 +1628,11 @@ C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j)
             nbors(j,i) = -1
          enddo
       enddo
-C$OMP END PARALLEL DO      
+C$OMP END PARALLEL DO     
+      iper = 0
       call computecoll(nlevels,nboxes,laddr, boxsize,
-     1                   centers,iparent,nchild,
-     2                   ichild,27,nnbors,nbors)
+     1                centers,iparent,nchild,
+     2                ichild,iper,nnbors,nbors)
 
 c     Processing of flag and flag+ boxes is done
 c     Start processing flag++ boxes. We will use a similar
@@ -1740,10 +1744,11 @@ C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j)
          enddo
       enddo
 C$OMP END PARALLEL DO    
-
+      
+      iper = 0
       call computecoll(nlevels,nboxes,laddr, boxsize,
      1                   centers,iparent,nchild,
-     2                   ichild,27,nnbors,nbors)
+     2                   ichild,iper,nnbors,nbors)
       
 
       return
@@ -1839,7 +1844,7 @@ c     Temporary variables
          tladdr(1,ilev) = laddr(1,ilev)
          tladdr(2,ilev) = laddr(2,ilev)
       enddo
-      call tree_copy(nd,nboxes,npbox,centers,ilevel,iparent,nchild,
+      call vol_tree_copy(nd,nboxes,npbox,centers,ilevel,iparent,nchild,
      1            ichild,fvals,tcenters,tilevel,tiparent,tnchild,
      2            tichild,tfvals)
 

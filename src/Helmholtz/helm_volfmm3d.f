@@ -237,10 +237,11 @@ c
 
       isep = 1
       mnbors = 27
+      iper = 0
       call computemnlists(nlevels,nboxes,itree(iptr(1)),
      1       boxsize,centers,itree(iptr(3)),itree(iptr(4)),
      2       itree(iptr(5)),isep,itree(iptr(6)),mnbors,itree(iptr(7)),
-     3       mnlist1,mnlist2,mnlist3,mnlist4)
+     3       iper,mnlist1,mnlist2,mnlist3,mnlist4)
 
       allocate(list1(mnlist1,nboxes),list2(mnlist2,nboxes))
       allocate(list3(mnlist3,nboxes),list4(mnlist4,nboxes))
@@ -252,7 +253,7 @@ c
       call computelists(nlevels,nboxes,itree(iptr(1)),
      1   boxsize,centers,itree(iptr(3)),itree(iptr(4)),
      2   itree(iptr(5)),isep,itree(iptr(6)),mnbors,itree(iptr(7)),
-     3   nlist1,mnlist1,list1,nlist2,mnlist2,list2,
+     3   iper,nlist1,mnlist1,list1,nlist2,mnlist2,list2,
      4   nlist3,mnlist3,list3,nlist4,mnlist4,list4)
 
 
@@ -723,10 +724,11 @@ c
 
       isep = 1
       mnbors = 27
+      iper = 0
       call computemnlists(nlevels,nboxes,itree(iptr(1)),
      1       boxsize,centers,itree(iptr(3)),itree(iptr(4)),
      2       itree(iptr(5)),isep,itree(iptr(6)),mnbors,itree(iptr(7)),
-     3       mnlist1,mnlist2,mnlist3,mnlist4)
+     3       iper,mnlist1,mnlist2,mnlist3,mnlist4)
 
       allocate(list1(mnlist1,nboxes),list2(mnlist2,nboxes))
       allocate(list3(mnlist3,nboxes),list4(mnlist4,nboxes))
@@ -738,7 +740,7 @@ c
       call computelists(nlevels,nboxes,itree(iptr(1)),
      1   boxsize,centers,itree(iptr(3)),itree(iptr(4)),
      2   itree(iptr(5)),isep,itree(iptr(6)),mnbors,itree(iptr(7)),
-     3   nlist1,mnlist1,list1,nlist2,mnlist2,list2,
+     3   iper,nlist1,mnlist1,list1,nlist2,mnlist2,list2,
      4   nlist3,mnlist3,list3,nlist4,mnlist4,list4)
 
       call prinf('mnlist4=*',mnlist4,1)
