@@ -9,9 +9,9 @@ HOST = osx
 
 ifeq ($(HOST),osx)
 FC = gfortran
-FFLAGS = -O3 -march=native -funroll-loops -fopenmp -c -w
+FFLAGS = -O3 -march=native -std=legacy -funroll-loops -fopenmp -c -w
 FLINK = gfortran -w -fopenmp -o $(EXEC)
-FEND = -lopenblas ${LDFLAGS}
+FEND = -framework accelerate 
 endif
 
 ifeq ($(HOST),linux-gfortran)
@@ -45,6 +45,7 @@ endif
 
 SRC = ../../src
 UTILS_DIR = ../../../utils
+FMM3D = ../../../FMM3D/src
 
 
 .PHONY: all clean list
@@ -54,6 +55,7 @@ SOURCES =  test_vol_tree.f \
   $(UTILS_DIR)/legeexps.f \
   $(SRC)/Common/legetens.f \
   $(SRC)/Common/voltab3d.f \
+  $(FMM3D)/Common/tree_routs3d.f \
   $(UTILS_DIR)/hkrand.f \
   $(UTILS_DIR)/dlaran.f \
 
