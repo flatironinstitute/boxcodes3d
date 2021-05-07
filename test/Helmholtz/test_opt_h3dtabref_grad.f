@@ -61,11 +61,11 @@ c
            if(ii.eq.1) fker=> h3d_vslp_gradx
            if(ii.eq.2) fker=> h3d_vslp_grady
            if(ii.eq.3) fker=> h3d_vslp_gradz
-           call h3dtabp_ref_brute_fker(ndeg,tab_ref(1,1,ii),ntarg0,fker,
+           call h3dtab_ref_brute(ndeg,tab_ref(1,1,ii),ntarg0,fker,
      1        dpars,zk,ipars)
          enddo
-          write(fname,'(a,i2.2,a,i1,a)') 'tabref_grad_',n,'_izk_',izk,
-     1       'new.dat'
+          write(fname,'(a,i2.2,a,i1,a)') 'tabref_data/tabref_grad_',n,
+     1       '_izk_',izk,'new.dat'
           open(unit=33,file=trim(fname),action='readwrite',
      1       form='unformatted',access='stream')
          write(unit=33) tab_ref
@@ -81,8 +81,8 @@ c
           if(izk.eq.2) zk = 0.16d0
           if(izk.eq.3) zk = im*1.6d0
           if(izk.eq.4) zk = 5.0d0
-          write(fname,'(a,i2.2,a,i1,a)') 'tabref_grad_',n,'_izk_',izk,
-     1       'new.dat'
+          write(fname,'(a,i2.2,a,i1,a)') 'tabref_data/tabref_grad_',
+     1       n,'_izk_',izk,'new.dat'
           open(unit=33,file=trim(fname),action='readwrite',
      1       form='unformatted',access='stream')
           read(unit=33) tab_ref
@@ -118,7 +118,7 @@ C$           t1 = omp_get_wtime()
              if(idir.eq.1) fker=> h3d_vslp_gradx
              if(idir.eq.2) fker=> h3d_vslp_grady
              if(idir.eq.3) fker=> h3d_vslp_gradz
-            call h3dtabp_ref_brute_new_fker(ndeg,tol,tab2(1,1,idir),
+            call h3dtab_ref_brute(ndeg,tol,tab2(1,1,idir),
      1         ntarg0,fker,dpars,zk,ipars)
           enddo
           call cpu_time(t2)

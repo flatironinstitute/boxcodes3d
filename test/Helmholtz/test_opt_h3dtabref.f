@@ -56,10 +56,10 @@ c
          if(izk.eq.4) zk = 5.0d0
          print *, "here"
          print *, "zk=",zk
-         call h3dtabp_ref_brute_fker(ndeg,tab_ref,ntarg0,h3d_vslp,
+         call h3dtab_ref_brute(ndeg,tab_ref,ntarg0,h3d_vslp,
      1      dpars,zk,ipars)
-          write(fname,'(a,i2.2,a,i1,a)') 'tabref_',n,'_izk_',izk,
-     1       'new.dat'
+          write(fname,'(a,i2.2,a,i1,a)') 'tabref_data/tabref_',
+     1       n,'_izk_',izk,'new.dat'
           open(unit=33,file=trim(fname),action='readwrite',
      1       form='unformatted',access='stream')
          write(unit=33) tab_ref
@@ -75,8 +75,8 @@ c
           if(izk.eq.2) zk = 0.16d0
           if(izk.eq.3) zk = im*1.6d0
           if(izk.eq.4) zk = 5.0d0
-          write(fname,'(a,i2.2,a,i1,a)') 'tabref_',n,'_izk_',izk,
-     1       'new.dat'
+          write(fname,'(a,i2.2,a,i1,a)') 'tabref_data/tabref_',n,
+     1       '_izk_',izk,'new.dat'
           open(unit=33,file=trim(fname),action='readwrite',
      1       form='unformatted',access='stream')
           read(unit=33) tab_ref
@@ -106,7 +106,8 @@ c
 
           call cpu_time(t1)
 C$           t1 = omp_get_wtime()          
-          call h3dtabp_ref_brute_new_fker(ndeg,tol,tab2,ntarg0,
+
+          call h3dtab_ref_brute(ndeg,tol,tab2,ntarg0,
      1        h3d_vslp,dpars,zk,ipars)
           call cpu_time(t2)
 C$           t2 = omp_get_wtime()          
@@ -117,7 +118,7 @@ cc
           errmaxa = 0
           rmax = 0
           do i=1,npol3
-            do j=npt+1,ntarg0
+            do j=1,ntarg0
              ra = max(abs(tab_ref(j,i)),1.0d0)
              erra = abs(tab(j,i)-tab_ref(j,i))/ra
              if(erra.gt.errmax1) errmax1 = erra
@@ -155,7 +156,7 @@ cc
           errmaxa = 0
           rmax = 0
           do i=1,npol3
-            do j=npt+1,ntarg0
+            do j=1,ntarg0
              ra = max(abs(tab_ref(j,i)),1.0d0)
              erra = abs(tab2(j,i)-tab_ref(j,i))/ra
              if(erra.gt.errmax1) errmax1 = erra
