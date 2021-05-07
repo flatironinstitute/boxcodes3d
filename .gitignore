@@ -2,3 +2,9 @@
 *~
 *.dat
 *.save1
+*DS_store
+*.sav*
+*.out
+fort.*
+*.zip
+*.pdf
