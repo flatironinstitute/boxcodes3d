@@ -22,14 +22,14 @@ c
       enddo
  1100 format(2x,e11.5,3(2x,i1),2(2x,i6),2x,i9,6(2x,e11.5))              
 
-      dpars(4) = 0.05d0/4
-      dpars(4) = 0.75d0
+      dpars(4) = 0.05d0
+cc      dpars(4) = 0.75d0
       call prin2('dpars=*',dpars,4)
 
       norder = 8 
       iptype = 0 
       npbox = norder*norder*norder
-      iprec = 1
+      iprec = 2
               
       print *, ""
       print *, ""
@@ -58,7 +58,6 @@ C$    t2 = omp_get_wtime()
       call prinf('nlevels=*',nlevels,1)
       call prin2('rintl=*',rintl,nlevels+1)
 
-      stop
       allocate(fvals(nd,npbox,nboxes),centers(3,nboxes))
       allocate(boxsize(0:nlevels),itree(ltree))
 

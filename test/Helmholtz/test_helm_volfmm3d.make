@@ -9,14 +9,14 @@ HOST = osx
 
 ifeq ($(HOST),osx)
 FC = gfortran
-FFLAGS = -O3 -march=native --openmp -funroll-loops -c -w
+FFLAGS = -O3 -march=native --openmp -funroll-loops -c -w -std=legacy
 FLINK = gfortran -w --openmp -o $(EXEC)
 FEND = -lopenblas ${LDFLAGS}
 endif
 
 ifeq ($(HOST),linux-gfortran)
 FC = gfortran
-FFLAGS = -fPIC -O3 -march=native -funroll-loops -c -w  
+FFLAGS = -fPIC -O3 -march=native -funroll-loops -c -w -std=legacy 
 FLINK = gfortran -w -o $(EXEC) 
 FEND = -lopenblas -L/usr/local/opt/openblas/lib 
 endif
@@ -80,9 +80,9 @@ SOURCES =  test_helm_volfmm3d.f \
   $(FMM3D)/Common/rotproj.f \
   $(FMM3D)/Common/besseljs3d.f \
   $(FMM3D)/Common/fmmcommon.f \
-  $(FMM3D)/Common/tree_lr_3d.f \
   $(FMM3D)/Common/rotgen.f \
   $(FMM3D)/Common/dfft.f \
+  $(FMM3D)/Common/tree_routs3d.f \
   $(FMM3D)/Helmholtz/h3dcommon.f \
   $(FMM3D)/Helmholtz/hwts3e.f \
   $(FMM3D)/Helmholtz/hnumphys.f \

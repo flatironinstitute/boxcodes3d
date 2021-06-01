@@ -2,6 +2,8 @@
       character *2 arg_comm
       complex *16 zk
 
+      call prini(6,13)
+
       zk = 6.28d0
       call get_command_argument(1,arg_comm)
       read(arg_comm,*) iprec
@@ -12,6 +14,9 @@
       call get_command_argument(3,arg_comm)
       read(arg_comm,*) icase
 
+      call prinf('starting computation*',i,0)
+
+      if(iprec.eq.3.and.norder.eq.4) goto 1111
       if(iprec.eq.4.and.norder.eq.4) goto 1111
       if(iprec.eq.4.and.norder.eq.6) goto 1111
       if(iprec.eq.0.and.norder.eq.8) goto 1111
@@ -69,7 +74,6 @@ c
       external fgaussn,fgauss1,fgaussmulti
       logical flag
 
-      call prini(6,13)
 
       done = 1
       pi = atan(done)*4
@@ -135,7 +139,7 @@ c
 C$      t1 = omp_get_wtime()
 
       call vol_tree_mem(eps,zk,boxlen,norder,iptype,eta,
-     1   fgaussn,nd,dpars,zpars,ipars,nlevels,nboxes,ltree,rintl)
+     1   fker,nd,dpars,zpars,ipars,nlevels,nboxes,ltree,rintl)
 
       call prinf('nboxes=*',nboxes,1)
       call prinf('nlevels=*',nlevels,1)
@@ -144,7 +148,7 @@ C$      t1 = omp_get_wtime()
       allocate(fvals(nd,npbox,nboxes),centers(3,nboxes))
       allocate(boxsize(0:nlevels),itree(ltree))
 
-      call vol_tree_build(eps,zk,boxlen,norder,iptype,eta,fgaussn,nd,
+      call vol_tree_build(eps,zk,boxlen,norder,iptype,eta,fker,nd,
      1  dpars,zpars,ipars,nlevels,nboxes,ltree,rintl,itree,iptr,fvals,
      2  centers,boxsize)
       

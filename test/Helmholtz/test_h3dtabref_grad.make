@@ -8,14 +8,14 @@ HOST = osx
 
 ifeq ($(HOST),osx)
 FC = gfortran
-FFLAGS = -O3 -march=native -funroll-loops -c -w -fopenmp -std=legacy
+FFLAGS = -fPIC -O3 -march=native -funroll-loops -c -w -fopenmp -std=legacy
 FLINK = gfortran -w -fopenmp -std=legacy -o $(EXEC)
 FEND = -lopenblas ${LDFLAGS}
 endif
 
 ifeq ($(HOST),linux-gfortran)
 FC = gfortran
-FFLAGS = -O3 -march=native -funroll-loops -ftree-vectorize -ffast-math -c -w  
+FFLAGS = -fPIC -O3 -march=native -funroll-loops -ftree-vectorize -ffast-math -c -w  
 FLINK = gfortran -w -o $(EXEC) 
 FEND = -lopenblas 
 endif
@@ -29,7 +29,7 @@ endif
 
 ifeq ($(HOST),linux-gfortran-openmp)
 FC = gfortran
-FFLAGS = -O3 -march=native -fopenmp -funroll-loops -c -w  
+FFLAGS = -fPIC -O3 -march=native -fopenmp -funroll-loops -c -w  
 FLINK = gfortran -w -fopenmp -o $(EXEC) 
 FEND = -lopenblas
 endif
@@ -43,14 +43,11 @@ endif
 
 
 SRC = ../../src
-UTILS_DIR = ../../utils
-XTRI_DIR = ../../xtri/src
-YTRI_DIR = ../../ytri/src
 
 
 .PHONY: all clean list
 
-SOURCES =  test_opt_h3dtabref_grad.f \
+SOURCES =  test_h3dtabref_grad.f \
   $(SRC)/Common/prini_new.f \
   $(SRC)/Common/legeexps.f \
   $(SRC)/Common/legetens.f \
@@ -68,7 +65,7 @@ SOURCES =  test_opt_h3dtabref_grad.f \
   $(SRC)/Common/voltab3d.f \
   $(SRC)/Helmholtz/lommel.f \
   $(SRC)/Helmholtz/h3dtab.f \
-  $(SRC)/Helmholtz/h3dtab_brute2.f \
+  $(SRC)/Helmholtz/h3dtab_brute.f \
   $(SRC)/Common/cubeintrouts2.f
 
 

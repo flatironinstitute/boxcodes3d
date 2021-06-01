@@ -1,35 +1,35 @@
 
 EXEC = int2h3danti_legeup
 
-#HOST = osx
-HOST=linux-gfortran
-HOST=linux-gfortran-openmp
+HOST = osx
+#HOST=linux-gfortran
+#HOST=linux-gfortran-openmp
 #HOST=linux-gfortran-debug
 
 ifeq ($(HOST),osx)
 FC = gfortran
-FFLAGS = -O3 -march=native -funroll-loops -c -w
+FFLAGS = -fPIC -O3 -march=native -funroll-loops -c -w -std=legacy
 FLINK = gfortran -w -o $(EXEC)
 FEND = -framework accelerate
 endif
 
 ifeq ($(HOST),linux-gfortran)
 FC = gfortran
-FFLAGS = -O3 -march=native -funroll-loops -ftree-vectorize -ffast-math -c -w  
+FFLAGS = -fPIC -O3 -march=native -funroll-loops -ftree-vectorize -ffast-math -c -w -std=legacy 
 FLINK = gfortran -w -o $(EXEC) 
 FEND = -lblas -llapack
 endif
 
 ifeq ($(HOST),linux-gfortran-debug)
 FC = gfortran
-FFLAGS = -g -c -w  
+FFLAGS = -g -c -w -std=legacy 
 FLINK = gfortran -w -g -o $(EXEC) 
 FEND = -lblas -llapack
 endif
 
 ifeq ($(HOST),linux-gfortran-openmp)
 FC = gfortran
-FFLAGS = -O3 -march=native --openmp -funroll-loops -ftree-vectorize -ffast-math -c -w  
+FFLAGS = -fPIC -O3 -march=native --openmp -funroll-loops -ftree-vectorize -ffast-math -c -w -std=legacy 
 FLINK = gfortran -w --openmp -o $(EXEC) 
 FEND = -lblas -llapack
 endif
@@ -69,7 +69,6 @@ SOURCES =  test_h3danti_compare.f \
   $(SRC)/Helmholtz/lommel.f \
   $(SRC)/Common/aquad.f \
   $(SRC)/Helmholtz/h3danti.f \
-  $(SRC)/Helmholtz/h3dtab_brute.f
 
 
 ifeq ($(WITH_SECOND),1)
