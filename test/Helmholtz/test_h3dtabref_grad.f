@@ -50,6 +50,7 @@ c
 c
       ifgen = 0
       izk = 4
+      eps_exact = 1.0d-11
       if(ifgen.eq.1) then
          if(izk.eq.1) zk = 1.6d0
          if(izk.eq.2) zk = 0.16d0
@@ -61,8 +62,8 @@ c
            if(ii.eq.1) fker=> h3d_vslp_gradx
            if(ii.eq.2) fker=> h3d_vslp_grady
            if(ii.eq.3) fker=> h3d_vslp_gradz
-           call h3dtab_ref_brute(ndeg,tab_ref(1,1,ii),ntarg0,fker,
-     1        dpars,zk,ipars)
+           call h3dtab_ref_brute(ndeg,eps_exact,tab_ref(1,1,ii),
+     1        ntarg0,fker,dpars,zk,ipars)
          enddo
           write(fname,'(a,i2.2,a,i1,a)') 'tabref_data/tabref_grad_',n,
      1       '_izk_',izk,'new.dat'

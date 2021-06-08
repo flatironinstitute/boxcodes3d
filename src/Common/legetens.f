@@ -1571,3 +1571,146 @@ c
       return
       end
 
+c
+c
+c
+c
+c
+      subroutine legetens_eval_3d_zpq(p,ttype,q,coefs,nc,vals,nv,vmat)
+c
+c  This subroutine evaluates an order p legendre expansion
+c  at order q tensor product legendre nodes where the 1d 
+c  polynomial values to coefficients matrix is user provided
+c
+c  The coefficients and values are assumed to be complex
+c
+c  
+c
+c
+c
+      implicit real *8 (a-h,o-z)
+      integer i,j,k,l,m,n,p,q
+      character *1 ttype
+      real *8 vmat(p,q)
+      complex *16 coefs(nc),vals(q,q,q)
+      complex *16, allocatable :: ccv(:,:,:),cvv(:,:,:)
+      complex *16, allocatable :: coefs_cast(:,:,:)
+      
+      nccv = p*p*q
+      ncvv = p*q*q
+      allocate(coefs_cast(p,p,p),ccv(q,p,p),cvv(q,q,p))
+
+      if(ttype.eq.'f'.or.ttype.eq.'F') then
+        ip = 1
+        do i=1,p
+          do j=1,p
+            do l=1,p
+              coefs_cast(l,j,i) = coefs(ip)
+              ip = ip+1
+            enddo
+          enddo
+        enddo
+      endif
+
+      if(ttype.eq.'t'.or.ttype.eq.'T') then
+        ip = 1
+        do i=1,p
+          do j=1,p+1-i
+            do l=1,p+2-i-j
+              coefs_cast(l,j,i) = coefs(ip)
+              ip = ip+1
+            enddo
+          enddo
+        enddo
+      endif
+
+      do i=1,p
+        do j=1,p
+          do l=1,q
+            ccv(l,j,i) = 0
+          enddo
+        enddo
+      enddo
+
+      if(ttype.eq.'f'.or.ttype.eq.'F') then
+        do i=1,p
+          do j=1,p
+            do l=1,q
+              do m=1,p
+                ccv(l,j,i) = ccv(l,j,i) + coefs_cast(m,j,i)*vmat(m,l)
+              enddo
+            enddo
+          enddo
+        enddo
+      endif
+
+      if(ttype.eq.'t'.or.ttype.eq.'T') then
+        do i=1,p
+          do j=1,p+1-i
+            do l=1,q
+              do m=1,p+2-i-j
+                ccv(l,j,i) = ccv(l,j,i) + coefs_cast(m,j,i)*vmat(m,l)
+              enddo
+            enddo
+          enddo
+        enddo
+      endif
+
+      do i=1,p
+        do j=1,q
+          do l=1,q
+            cvv(l,j,i) = 0
+          enddo
+        enddo
+      enddo
+
+
+
+      if(ttype.eq.'f'.or.ttype.eq.'F') then
+        do i=1,p
+          do j=1,q
+            do l=1,q
+              do m=1,p
+                cvv(l,j,i) = cvv(l,j,i) + ccv(l,m,i)*vmat(m,j)
+              enddo
+            enddo
+          enddo
+        enddo
+      endif
+
+      if(ttype.eq.'t'.or.ttype.eq.'T') then
+        do i=1,p
+          do j=1,q
+            do l=1,q
+              do m=1,p+1-i
+                cvv(l,j,i) = cvv(l,j,i) + ccv(l,m,i)*vmat(m,j)
+              enddo
+            enddo
+          enddo
+        enddo
+      endif
+
+
+      do i=1,q
+        do j=1,q
+          do l=1,q
+            vals(l,j,i) = 0
+          enddo
+        enddo
+      enddo
+
+      do i=1,q
+        do j=1,q
+          do l=1,q
+            do m=1,p
+              vals(l,j,i) = vals(l,j,i) + cvv(l,j,m)*vmat(m,i)
+            enddo
+          enddo
+        enddo
+      enddo
+
+
+
+      return
+      end
+

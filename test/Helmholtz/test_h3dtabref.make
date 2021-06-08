@@ -63,9 +63,11 @@ SOURCES =  test_h3dtabref.f \
   $(SRC)/Common/quadintrouts2.f \
   $(SRC)/Common/quadintrouts.f \
   $(SRC)/Common/voltab3d.f \
+  $(SRC)/Common/fakepolya3d.f \
   $(SRC)/Helmholtz/lommel.f \
   $(SRC)/Helmholtz/h3dtab.f \
   $(SRC)/Helmholtz/h3dtab_brute.f \
+  $(SRC)/Helmholtz/h3danti.f \
   $(SRC)/Common/cubeintrouts2.f
 
 
