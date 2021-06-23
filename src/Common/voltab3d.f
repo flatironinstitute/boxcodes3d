@@ -722,6 +722,11 @@ c     only outer x positions possible
          
       return
       end
+c
+c
+c
+c
+c
 
       subroutine tensrefpts3d(xq,nq,bs,xyzc,wc,wbtos,wstob)
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -789,6 +794,75 @@ c     get corresponding meshgrid
 
       return
       end
-
-
+c
+c
+c
+c
+c
+c
       
+
+      subroutine tensrefpts3d_grid(ngrid,grid,bs,xyzc,wc,wbtos,wstob)
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     generate reference points for the limited subset of
+c     points in colleague, big-to-small, and small-to-big
+c     interactions which can be used to obtain the other
+c     interactions by symmetries, where points on unit box
+c     are specified
+c
+      
+      implicit real *8 (a-h,o-z)
+      dimension wc(3,ngrid,4), wbtos(3,ngrid,3), wstob(3,ngrid,3)
+      dimension xshift(3), yshift(3), zshift(3), xyzc(3)
+      dimension grid(3,ngrid)
+
+c     lowest corner of cube (each coordinate is smallest)
+      
+      xc = xyzc(1)
+      yc = xyzc(2)
+      zc = xyzc(3)      
+
+c     get corresponding meshgrid
+
+      do i = 1,ngrid
+         wc(1,i,1) = xc + grid(1,i)+1
+         wc(2,i,1) = yc + grid(2,i)+1
+         wc(3,i,1) = zc + grid(3,i)+1
+      enddo
+
+
+      xshift(1) = -1
+      xshift(2) = 0
+      xshift(3) = 0
+      yshift(1) = -1
+      yshift(2) = -1
+      yshift(3) = 0
+      zshift(1) = -1
+      zshift(2) = -1
+      zshift(3) = -1
+
+      bsh = bs/2
+      
+      do ii = 1,3
+         do i = 1,ngrid
+            wc(1,i,ii+1) = xc + xshift(ii)*bs + grid(1,i)+1
+            wc(2,i,ii+1) = yc + yshift(ii)*bs + grid(2,i)+1
+            wc(3,i,ii+1) = zc + zshift(ii)*bs + grid(3,i)+1          
+
+            wbtos(1,i,ii) = xc + xshift(ii)*bsh + (grid(1,i)+1)/2
+            wbtos(2,i,ii) = yc + yshift(ii)*bsh + (grid(2,i)+1)/2
+            wbtos(3,i,ii) = zc + zshift(ii)*bsh + (grid(3,i)+1)/2
+
+            wstob(1,i,ii) = xc + (xshift(ii)-1)*bs + (grid(1,i)+1)*2
+            wstob(2,i,ii) = yc + (yshift(ii)-1)*bs + (grid(2,i)+1)*2
+            wstob(3,i,ii) = zc + (zshift(ii)-1)*bs + (grid(3,i)+1)*2
+
+         enddo
+      enddo
+         
+
+
+      return
+      end
+

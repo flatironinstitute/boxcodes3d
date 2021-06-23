@@ -9,7 +9,9 @@ c       standard adaptive integration
 c
 c
 c
-      subroutine h3dtab_ref_brute(ndeg,tol,tab,ldtab,fker,
+c
+c
+      subroutine h3dtab_ref_brute(ndeg,tol,grid,npt,tab,ldtab,fker,
      1   dpars,zpars,ipars)
 
 c
@@ -50,6 +52,7 @@ c     points using adaptive integration
      
       implicit real *8 (a-h,o-z)
       integer ndeg,ldtab
+      real *8 grid(3,npt)
       complex *16 tab(ldtab,*), zpars(*)
       real *8 dpars(*)
       integer ipars(*)
@@ -77,23 +80,14 @@ c       local
       xyzc(2) = -1
       xyzc(3) = -1
 
-      itype = 0
-      call legeexps(itype,n,xq,u,v,w)
-
-      do i=1,norder
-        xq(i) = xq(i) + 1
-      enddo
-
-
-      npt = n**3
       ntarg = 10*npt
       allocate(xyztarg(3,ntarg))
       allocate(xyztmp(3,ntarg),iindtmp(ntarg))
 
       istart1 = 4*npt+1
       istart2 = 7*npt+1
-      call tensrefpts3d(xq,norder,bs,xyzc,xyztarg,xyztarg(1,istart1),
-     1  xyztarg(1,istart2))
+      call tensrefpts3d_grid(npt,grid,bs,xyzc,xyztarg,
+     1  xyztarg(1,istart1),xyztarg(1,istart2))
 
 cc      call prin2('xyztarg=*',xyztarg,3*npt)
       
@@ -104,7 +98,7 @@ c
       tab_t = 0
 
 
-      eps = tol
+      eps = tol 
       ncmax = 30000
       nqorder = 11
 
@@ -146,6 +140,11 @@ c
       return
       end
 
+
+
+c
+c
+c
 
 
 c
