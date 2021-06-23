@@ -51,6 +51,36 @@ c     local
       return
       end
 
+      subroutine buildtabfromsyms3dcc(ndeg,type,iref,idimp,iflip,tabref,
+     1     tabout,npol)
+c
+c     this is the routine for coefficient-to-coefficient (of the same
+c     degree) tables
+c      
+c     use the dimension permutation/flip info to extract the
+c     requested table from the reference table
+c      
+      implicit none
+      integer ndeg, iref, iflip(3), idimp(3), npol
+      complex *16 tabref(npol,npol,*), tabout(npol,npol)
+      character type
+c     local
+      integer n, j, k
+      integer icperm(npol), icsign(npol)
+      
+      n = ndeg+1
+      call buildperm3dc(idimp,iflip,n,type,icperm,icsign)
+
+      do j = 1,npol
+         do k = 1,npol
+            tabout(icperm(k),j) =
+     1           icsign(k)*icsign(j)*tabref(k,icperm(j),iref)
+         enddo
+      enddo
+
+      return
+      end
+
 
       subroutine splitreftab3d(tabref,ldtab,tabcoll,tabbtos,tabstob,
      1     npt,npol)
@@ -200,6 +230,81 @@ c
             enddo
          enddo
       enddo
+
+      if (cp .eq. 't' .or. cp .eq. 'T') then
+c     total degree order
+         ii = 0
+         do iz = 1,nq
+            do iy = 1,nq+1-iz
+               do ix = 1,nq+1-iy+1-iz
+                  ii = ii+1
+                  ilist(ix,iy,iz) = ii
+               enddo
+            enddo
+         enddo
+
+         ii = 0
+         do iz = 1,nq
+            do iy = 1,nq+1-iz
+               do ix = 1,nq+1-iy+1-iz
+                  ii = ii+1
+                  itemp(1) = ix
+                  itemp(2) = iy
+                  itemp(3) = iz
+                  jx = itemp(idimp(1))
+                  jy = itemp(idimp(2))
+                  jz = itemp(idimp(3))
+
+                  jj = ilist(jx,jy,jz)
+                  
+                  icperm(ii) = jj
+                  icsign(ii) = 
+     1                 (iflip(idimp(1)))**(jx-1)*
+     2                 (iflip(idimp(2)))**(jy-1)*
+     2                 (iflip(idimp(3)))**(jz-1)
+               enddo
+            enddo
+         enddo
+      endif
+      return
+      end
+      
+      subroutine buildperm3dc(idimp,iflip,nq,cp,icperm,icsign)
+c
+c
+c     combines dimension permutation and flip information into
+c     coefficient permutations for source and target densities.
+c     also returns sign flips per coefficient
+c            
+      implicit real*8 (a-h,o-z)
+      dimension idimp(3), iflip(3), icperm(*), icsign(*)
+      character cp
+
+      integer :: ilist(32**3)
+      integer, allocatable :: ilist2(:)
+      
+
+
+      if (nq .gt. 32) then
+         allocate(ilist2(nq**3))
+         call buildperm3dc1(idimp,iflip,nq,cp,icperm,icsign,ilist2)
+      else
+         call buildperm3dc1(idimp,iflip,nq,cp,icperm,icsign,ilist)
+      endif
+
+      return
+      end
+
+
+      subroutine buildperm3dc1(idimp,iflip,nq,cp,icperm,icsign,ilist)
+c
+c
+
+      implicit real*8 (a-h,o-z)
+      dimension idimp(3), iflip(3), icperm(*), icsign(*)
+      dimension ilist(nq,nq,nq)
+      dimension itemp(3)
+      character cp
 
       if (cp .eq. 't' .or. cp .eq. 'T') then
 c     total degree order
