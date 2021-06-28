@@ -38,6 +38,7 @@ c
       real *8 xq(200), u, v, w, xyzc(3), xtest(3), tol
       real *8, allocatable :: xyz(:,:), xcoll(:,:,:), xbtos(:,:,:)
       real *8, allocatable :: xstob(:,:,:)      
+      complex *16, allocatable :: zints(:)
       complex *16, allocatable :: tab(:,:)
       complex *16, allocatable :: tabtemp(:,:)      
       complex *16, allocatable :: tabcoll(:,:,:)
@@ -62,6 +63,8 @@ c     generate reference table
       ntarg0 = 10*npt
       type = 't'
       call legetens_npol_3d(ndeg,type,npol)
+
+      allocate(zints(npol))
       allocate(tab(ntarg0,npol))
       call cpu_time(t1)
 c$    t1 = omp_get_wtime()      

@@ -74,6 +74,7 @@ c     local
       
       complex *16 zero, im, one
       complex *16, allocatable :: tabtemp(:,:), ahc(:,:), zv(:,:)
+      complex *16, allocatable :: tabtemp2(:,:)
       complex *16, allocatable :: ahcleg(:,:)
       complex *16, allocatable :: ahdercleg(:,:)
       complex *16, allocatable :: ahcleg3(:,:)
@@ -125,6 +126,8 @@ c     memory for coeffs, etc.
 
       allocate(errsup(npol3),errsdown(npol3))
 
+      allocate(tabtemp2(ntarg0,npol3))
+
 
       call h3danti_form(ndeg,nup,type,zk,ahcleg3,npolout,derrmax,
      1   errsup,errsdown)
@@ -149,15 +152,15 @@ c
 c  note vectorized initialization
 c
 
-C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,ipt,j,pols)
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ipol,ipt,j,pols)
       do ipt=1,npt
         call legetens_pols_3d(x(1,ipt),ndeg2,type,pols)
         do i=1,npol3
-          tab(ipt,i) = 0
+          tabtemp2(ipt,i) = 0
           do j=1,npolout
-            tab(ipt,i) = tab(ipt,i) + ahcleg3(j,i)*pols(j)
+            tabtemp2(ipt,i) = tabtemp2(ipt,i) + ahcleg3(j,i)*pols(j)
           enddo
-          tab(ipt,i) = -tab(ipt,i)*pi4
+          tabtemp2(ipt,i) = -tabtemp2(ipt,i)*pi4
         enddo
       enddo
 C$OMP END PARALLEL DO      
@@ -173,6 +176,7 @@ c     memory depending on ntarg
 C$      t1 = omp_get_wtime()      
       ntarg0 = 10*npt
       ntarg = 6*ntarg0
+
       allocate(slp_pots(npol2,ntarg),dlp_pots(npol2,ntarg))
       allocate(tabtemp(ntarg0,npol3))
 
@@ -181,7 +185,7 @@ C$      t1 = omp_get_wtime()
 
       do ii = 1,npol3
          do jj = npt+1,ntarg0
-            tab(jj,ii) = zero
+            tabtemp2(jj,ii) = zero
          enddo
       enddo
       call cpu_time(t2)
@@ -218,7 +222,7 @@ c     on face
 
          do ii = 1,npol3
             do jj = 1,ntarg0
-               tab(jj,ii) = tab(jj,ii) +
+               tabtemp2(jj,ii) = tabtemp2(jj,ii) +
      1              flips(iface)*tabtemp(jj,ii)
             enddo
          enddo
@@ -230,7 +234,7 @@ c     on face
 
          do ii = 1,npol3
             do jj = 1,ntarg0
-               tab(jj,ii) = tab(jj,ii) +
+               tabtemp2(jj,ii) = tabtemp2(jj,ii) +
      1              flipd(iface)*tabtemp(jj,ii)
             enddo
          enddo
@@ -240,6 +244,13 @@ c     on face
       call cpu_time(t2)
 C$      t2 = omp_get_wtime()      
       tlpspr = t2-t1
+
+c
+c  tabtemp2 now stores the volume potential at all the polya points. Convert 
+c  the volume potential to coefficients now
+c
+c
+
 
       return
       end
