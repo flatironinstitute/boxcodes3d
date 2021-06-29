@@ -3,10 +3,14 @@
       real *8 a(m,n),aqr(m,n),tau(n)
       integer jpvt(n)
       real *8, allocatable :: work(:)
+
       lwork = 100*(m+n)
       allocate(work(lwork))
 
       aqr = a
+      info = 0
+      jpvt = 0
+      tau = 0
 
       call dgeqp3(m,n,aqr,m,jpvt,tau,work,lwork,info)
 
