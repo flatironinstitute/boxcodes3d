@@ -17,7 +17,7 @@ c
 c
       
       subroutine h3dtabp_ref(ndeg,zk,tol,npt,x,tab,ldtab,nup,
-     1   iflg,tpat,tlpadap,tlpspr)
+     1   iflg,pmat_qr,npol3,pmat_jpvt,pmat_tau,tpat,tlpadap,tlpspr)
 c
 c     generate the Helmholtz potential table at the reference
 c     points
@@ -36,6 +36,13 @@ c     iflg - flag for determining which version of adaptive
 c              integration to use
 c            if iflg = 1, one with precomputation is used
 c            if iflg = 2, one without precomputation is used
+c     pmat_qr - qr decomposition of values to coefs matrix
+c         computed using dgeqp3
+c     npol3 - number of polynomials of total degree <= ndeg
+c       and also the tailing dimension of pmat_qr
+c     pmat_jpvt - permuation matrix in pivoted qr deocomposition
+c     pmat_tau - scaling factors in householde decompositions of
+c       qr decomposition of the matrix
 c
 c     output
 c      
@@ -57,10 +64,12 @@ c
 c     local
       integer idims(6), ndeg2, ii, jj, iface, npol2, npol3, ifdiff
       integer ntarg0, ntarg, n, idim, istart, npt, itype,nup
+      integer iend,istart2,iend2
       real *8 slicevals(6), flipd(6), flips(6), abszk, abszktol
       real *8 rcond, val, derscale, tol2, r, theta, phi
       real *8 tpat,tlpadap,tlpspr,t1,t2,omp_get_wtime
-      real *8 x(3,npt)
+      real *8 x(3,npt),pmat_qr(npt,npol3),pmat_tau(npol3)
+      integer pmat_jpvt(npol3)
       parameter (abszktol = 2.5d0)
 
       real *8, allocatable :: w(:), pols(:), v(:,:)
@@ -114,7 +123,6 @@ C$      t1 = omp_get_wtime()
 c     memory for coeffs, etc.
       
       ndeg2 = ndeg + 2*nup
-      call legetens_npol_3d(ndeg,type,npol3)
       call legetens_npol_3d(ndeg2,type,npolout)
       call legetens_npol_2d(ndeg2,type,npol2)
 
@@ -126,6 +134,7 @@ c     memory for coeffs, etc.
 
       allocate(errsup(npol3),errsdown(npol3))
 
+      ntarg0 = 10*npt
       allocate(tabtemp2(ntarg0,npol3))
 
 
@@ -152,7 +161,7 @@ c
 c  note vectorized initialization
 c
 
-C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ipol,ipt,j,pols)
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,ipt,j,pols)
       do ipt=1,npt
         call legetens_pols_3d(x(1,ipt),ndeg2,type,pols)
         do i=1,npol3
@@ -174,7 +183,6 @@ c     memory depending on ntarg
 
       call cpu_time(t1)
 C$      t1 = omp_get_wtime()      
-      ntarg0 = 10*npt
       ntarg = 6*ntarg0
 
       allocate(slp_pots(npol2,ntarg),dlp_pots(npol2,ntarg))
@@ -250,7 +258,15 @@ c  tabtemp2 now stores the volume potential at all the polya points. Convert
 c  the volume potential to coefficients now
 c
 c
+      do i=1,10
+        istart = (i-1)*npt + 1
+        iend = i*npt
 
+        istart2 = (i-1)*npol3 + 1
+        iend2 = i*npol3
+        call zqrsolv(npt,npol3,pmat_qr,pmat_jpvt,pmat_tau,npol3,
+     1    tabtemp2(istart:iend,1:npol3),tab(istart2:iend2,1:npol3))
+      enddo
 
       return
       end
