@@ -73,8 +73,8 @@ c     local
 
       do j = 1,npol
          do k = 1,npol
-            tabout(icperm(k),j) =
-     1           icsign(k)*icsign(j)*tabref(k,icperm(j),iref)
+            tabout(k,j) =
+     1           icsign(k)*icsign(j)*tabref(icperm(k),icperm(j),iref)
          enddo
       enddo
 

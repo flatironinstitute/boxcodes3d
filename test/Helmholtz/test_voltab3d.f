@@ -154,8 +154,6 @@ c
       ldtab = npol0
       call splitreftab3dcc(tab,ldtab,tabcoll,tabbtos,tabstob,npol)
 
-
-
 c     load symmetries and test
 
       call loadsymsc(iref,idimp,iflip)
@@ -176,14 +174,18 @@ c     load symmetries and test
               err1 = abs(tabtemp_ref_coefs(l,j) - tabtemp(l,j))
               all_pass_coll =(all_pass_coll.and.(err1 .lt. tol_test))
               if(err1.gt.tol_test) then
-                print *, i,j,l,err1
+                print *, i,l,j,err1
                 print *, real(tabtemp_ref_coefs(l,j)),real(tabtemp(l,j))
                 print *, imag(tabtemp_ref_coefs(l,j)),imag(tabtemp(l,j))
+                print *, tabtemp_ref_coefs(l,j)/tabtemp(l,j)
               endif
             enddo
          enddo
+
+         
       enddo
 
+      
       call loadsymsbtos(iref,idimp,iflip)
       do i = 1,nbtos
          call buildtabfromsyms3dcc(ndeg,type,iref(i),idimp(1,i),
