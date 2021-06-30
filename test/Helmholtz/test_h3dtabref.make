@@ -2,7 +2,7 @@
 EXEC = int2-opt-h3dtabref 
 
 HOST = osx
-#HOST=linux-gfortran
+HOST=linux-gfortran
 #HOST=linux-gfortran-openmp
 #HOST=linux-gfortran-debug
 
@@ -17,7 +17,7 @@ ifeq ($(HOST),linux-gfortran)
 FC = gfortran
 FFLAGS = -fPIC -O3 -march=native -funroll-loops -ftree-vectorize -ffast-math -c -w  
 FLINK = gfortran -w -o $(EXEC) 
-FEND = -lopenblas 
+FEND = -lblas -llapack
 endif
 
 ifeq ($(HOST),linux-gfortran-debug)

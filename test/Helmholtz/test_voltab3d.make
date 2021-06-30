@@ -6,32 +6,35 @@ HOST = osx
 #HOST=linux-gfortran-openmp
 #HOST=linux-gfortran-debug
 
+BLAS = -lopenblas
+BLAS = -lblas -llapack
+
 ifeq ($(HOST),osx)
 FC = gfortran
 FFLAGS = -fPIC -O3 -march=native -funroll-loops -c -w -fopenmp -std=legacy
 FLINK = gfortran -w -fopenmp -std=legacy -o $(EXEC)
-FEND = -lopenblas ${LDFLAGS}
+FEND = $(BLAS) ${LDFLAGS}
 endif
 
 ifeq ($(HOST),linux-gfortran)
 FC = gfortran
 FFLAGS = -fPIC -O3 -march=native -funroll-loops -ftree-vectorize -ffast-math -c -w  
 FLINK = gfortran -w -o $(EXEC) 
-FEND = -lopenblas 
+FEND = $(BLAS) 
 endif
 
 ifeq ($(HOST),linux-gfortran-debug)
 FC = gfortran
 FFLAGS = -g -c -w  
 FLINK = gfortran -w -g -o $(EXEC) 
-FEND = -lblas -llapack
+FEND = $(BLAS)
 endif
 
 ifeq ($(HOST),linux-gfortran-openmp)
 FC = gfortran
 FFLAGS = -fPIC -O3 -march=native -fopenmp -funroll-loops -c -w  
 FLINK = gfortran -w -fopenmp -o $(EXEC) 
-FEND = -lopenblas
+FEND = $(BLAS)
 endif
 
 ifeq ($(HOST),linux-ifort)
