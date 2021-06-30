@@ -1,23 +1,23 @@
 
-EXEC = int2greentab
+EXEC = int2-opt-h3dtabref 
 
-#HOST = osx
-HOST=linux-gfortran
-HOST=linux-gfortran-openmp
-HOST=linux-gfortran-debug
+HOST = osx
+#HOST=linux-gfortran
+#HOST=linux-gfortran-openmp
+#HOST=linux-gfortran-debug
 
 ifeq ($(HOST),osx)
 FC = gfortran
-FFLAGS = -O3 -march=native -funroll-loops -c -w
-FLINK = gfortran -w -o $(EXEC)
-FEND = -framework accelerate
+FFLAGS = -fPIC -O3 -march=native -funroll-loops -c -w -fopenmp -std=legacy
+FLINK = gfortran -w -fopenmp -std=legacy -o $(EXEC)
+FEND = -lopenblas ${LDFLAGS}
 endif
 
 ifeq ($(HOST),linux-gfortran)
 FC = gfortran
-FFLAGS = -O3 -march=native -funroll-loops -ftree-vectorize -ffast-math -c -w  
+FFLAGS = -fPIC -O3 -march=native -funroll-loops -ftree-vectorize -ffast-math -c -w  
 FLINK = gfortran -w -o $(EXEC) 
-FEND = -lblas -llapack
+FEND = -lopenblas 
 endif
 
 ifeq ($(HOST),linux-gfortran-debug)
@@ -29,9 +29,9 @@ endif
 
 ifeq ($(HOST),linux-gfortran-openmp)
 FC = gfortran
-FFLAGS = -O3 -march=native --openmp -funroll-loops -ftree-vectorize -ffast-math -c -w  
-FLINK = gfortran -w --openmp -o $(EXEC) 
-FEND = -lblas -llapack
+FFLAGS = -fPIC -O3 -march=native -fopenmp -funroll-loops -c -w  
+FLINK = gfortran -w -fopenmp -o $(EXEC) 
+FEND = -lopenblas
 endif
 
 ifeq ($(HOST),linux-ifort)
@@ -43,14 +43,11 @@ endif
 
 
 SRC = ../../src
-UTILS_DIR = ../../utils
-XTRI_DIR = ../../xtri/src
-YTRI_DIR = ../../ytri/src
 
 
 .PHONY: all clean list
 
-SOURCES =  test_h3dtab.f \
+SOURCES =  test_voltab3d.f \
   $(SRC)/Common/prini_new.f \
   $(SRC)/Common/legeexps.f \
   $(SRC)/Common/legetens.f \
@@ -63,13 +60,17 @@ SOURCES =  test_h3dtab.f \
   $(SRC)/Common/csvdpiv.f \
   $(SRC)/Common/qleigen_trid.f \
   $(SRC)/Common/yrecursion.f \
+  $(SRC)/Common/quadintrouts2.f \
   $(SRC)/Common/quadintrouts.f \
   $(SRC)/Common/voltab3d.f \
   $(SRC)/Common/loadsyms3d.f \
+  $(SRC)/Common/fakepolya3d.f \
+  $(SRC)/Common/qrdecomp_routs.f90 \
   $(SRC)/Helmholtz/lommel.f \
-  $(SRC)/Common/aquad.f \
   $(SRC)/Helmholtz/h3dtab.f \
-  $(SRC)/Helmholtz/h3dtab_brute.f
+  $(SRC)/Helmholtz/h3dtab_brute.f \
+  $(SRC)/Helmholtz/h3danti.f \
+  $(SRC)/Common/cubeintrouts2.f
 
 
 ifeq ($(WITH_SECOND),1)
@@ -92,7 +93,7 @@ OBJECTS = $(patsubst %.f,%.o,$(patsubst %.f90,%.o,$(SOURCES)))
 all: $(OBJECTS)
 	rm -f $(EXEC)
 	$(FLINK) $(OBJECTS) $(FEND)
-	./$(EXEC) 2 
+	./$(EXEC) 1 3 
 
 clean:
 	rm -f $(OBJECTS)

@@ -147,6 +147,130 @@ c
 c
 
 
+c      
+c      
+c
+c
+c
+      subroutine h3dtabbox_ref_brute(ndeg,tol,x,npt,tab,npols,fker,
+     1   dpars,zpars,ipars)
+
+c
+c
+c
+c     generate the quadrature table at the reference
+c     points using adaptive integration where the kernel of integration
+c     is given by fker
+c
+c     Calling sequence arguments for fker should be
+c     
+c     subroutine fker(x,y,dpars,zpars,ipars,f)
+c
+c     Note that this subroutine does not compute the integrals
+c     for the self cube and doesn't do any intelligent split
+c     between near and far
+c
+c
+c     input
+c
+c     ndeg - integer, highest degree of the basis polynomials
+c                    (measured in total degree, e.g. x^0y^1z^2
+c                     has total degree 3)
+c     ldtab - integer, leading dimension of the output table
+c     fker - function handle for evaluating kernel
+c     dpars - real parameters to be used by fker
+c     zpars - complex parameters to be used by fker
+c     ipars - integer parameters to be used by fker
+c
+c     output
+c      
+c     tab - complex *16 array (ldtab,*), tab(i,j) is the integral
+c     of the j-th tensor polynomial (in the ordering specified
+c     in legetens.f) against given kernel
+c     at the i-th reference target point (see tensrefpts3d)
+c     generate the Helmholtz potential table at the reference
+c     points using adaptive integration
+     
+      implicit real *8 (a-h,o-z)
+      integer ndeg,ldtab
+      real *8 x(3,npt)
+      complex *16 tab(npt,*), zpars(*)
+      real *8 dpars(*)
+      integer ipars(*)
+      
+
+c       local      
+      complex *16, allocatable :: tab_t(:,:),tab_tmp(:,:)
+      real *8 xyzc(3),bs,xq(100),w(100)
+      character ptype
+
+      external fker
+
+
+
+      n = ndeg + 1
+      norder = n
+      
+      allocate(tab_t(npols,npt))
+c
+c       vector initialization
+c
+      tab_t = 0
+
+
+      eps = tol 
+      ncmax = 30000
+      nqorder = 11
+
+      call prin2('zk=*',zpars,2)
+
+      ntt = 1
+      
+
+      if(ifself.eq.1) then
+        call cpu_time(t1)
+C$       t1 = omp_get_wtime()
+      
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i) SCHEDULE(DYNAMIC)
+        do i=1,npt
+          call ccubeints_split8int_adap(eps,norder,'t',npols,
+     1          x(1,i),ntt,x(1,i),
+     1          ncmax,fker,dpars,zpars,ipars,nqorder,tab_t(1,i))
+        enddo
+C$OMP END PARALLEL DO
+
+      else
+
+
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
+C$OMP$SCHEDULE(DYNAMIC)
+        do i=1,npt
+          call ccubeints_adap(eps,norder,'t',npols,ntt,x(1,i),
+     1          ncmax,fker,dpars,zpars,ipars,nqorder,tab_t(1,i))
+        enddo
+C$OMP END PARALLEL DO
+
+        call cpu_time(t2)
+C$        t2 = omp_get_wtime()     
+      endif
+c
+c    now transpose tab_t
+c      
+      do i=1,npt
+        do j=1,npols
+          tab(i,j) = tab_t(j,i) 
+        enddo
+      enddo
+
+      return
+      end
+
+
+
+c
+c
+c
+
 c
 c
 c
@@ -166,10 +290,6 @@ c
       return
       end
 
-c      
-c      
-c
-c
 c
 c
       subroutine h3d_vslp_gradx(x,y,dpars,zpars,ipars,f)

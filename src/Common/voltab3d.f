@@ -121,7 +121,57 @@ c     local
 
       return
       end
-      
+c
+c
+c
+c
+c
+
+
+      subroutine splitreftab3dcc(tabref,ldtab,tabcoll,tabbtos,tabstob,
+     1     npol)
+      implicit none
+      integer npt, npol, ldtab
+      complex *16 tabref(ldtab,*), tabcoll(npol,npol,*)
+      complex *16 tabbtos(npol,npol,*), tabstob(npol,npol,*)
+c     local
+      integer i, j, k, nbtos, nstob, ncoll, ii
+
+      ncoll = 4
+      nbtos = 3
+      nstob = 3
+
+      do j = 1,npol
+         ii = 0
+         do k = 1,ncoll
+            do i = 1,npol
+               ii = ii + 1
+               tabcoll(i,j,k) = tabref(ii,j)
+            enddo
+         enddo
+         do k = 1,nbtos
+            do i = 1,npol
+               ii = ii + 1
+               tabbtos(i,j,k) = tabref(ii,j)
+            enddo
+         enddo
+         do k = 1,nstob
+            do i = 1,npol
+               ii = ii + 1
+               tabstob(i,j,k) = tabref(ii,j)
+            enddo
+         enddo
+      enddo
+
+
+
+      return
+      end
+c
+c
+c
+c
+c
       subroutine mesh3d(x,nx,y,ny,z,nz,xyz)
       implicit real *8 (a-h,o-z)
       dimension x(*), y(*), z(*), xyz(3,*)
@@ -631,7 +681,10 @@ c     total degree order
          
       return
       end
-      
+c
+c
+c
+c
       
       subroutine alltargs3d(xq,nq,bs,xyzc,wc,wbtos,wstob)
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -722,6 +775,107 @@ c     only outer x positions possible
          
       return
       end
+c
+c
+c
+c
+      
+      subroutine alltargs3d_grid(grid0,ngrid,bs,xyzc,wc,wbtos,wstob)
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     generate reference points for all targets in colleague,
+c     big to small, and small to big interactions
+c
+      
+      implicit real *8 (a-h,o-z)
+      dimension wc(3,ngrid,27), wbtos(3,ngrid,56), wstob(3,ngrid,56)
+      dimension xshift(3), yshift(3), zshift(3), xyzc(3)
+      dimension xshiftbtos1(4), xshiftbtos2(2)
+      dimension xshiftstob1(4), xshiftstob2(2)      
+      dimension grid0(3,ngrid)
+      real *8, allocatable :: grid(:,:)
+
+      allocate(grid(3,ngrid))
+
+      do i=1,ngrid
+        grid(1,i) = grid0(1,i) + 1
+        grid(2,i) = grid0(2,i) + 1
+        grid(3,i) = grid0(3,i) + 1
+      enddo
+
+
+      nshift1 = 2
+      nshift2 = 4
+
+c     lowest corner of cube (each coordinate is smallest)
+      
+      xc = xyzc(1)
+      yc = xyzc(2)
+      zc = xyzc(3)      
+
+c     get corresponding meshgrid
+
+c     colleagues are straightforward
+
+      ind = 0
+      do iz = -1,1
+         do iy = -1,1
+            do ix = -1,1
+               ind = ind+1
+               do i = 1,ngrid
+                  wc(1,i,ind) = xc + ix*bs + grid(1,i)
+                  wc(2,i,ind) = yc + iy*bs + grid(2,i)
+                  wc(3,i,ind) = zc + iz*bs + grid(3,i)
+               enddo
+            enddo
+         enddo
+      enddo
+
+
+c     stob and btos are analogous but a
+c     little more complicated
+
+      bsh = bs/2
+
+      ind = 0
+      do iz = -1,2
+         do iy = -1,2
+            if (iz .eq. -1 .or. iz .eq. 2 .or.
+     1           iy .eq. -1 .or. iy .eq. 2) then
+c     all x positions possible
+               do ix = -1,2
+                  ind = ind+1
+                  do i = 1,ngrid
+                     wbtos(1,i,ind) = xc + ix*bsh + grid(1,i)/2
+                     wbtos(2,i,ind) = yc + iy*bsh + grid(2,i)/2
+                     wbtos(3,i,ind) = zc + iz*bsh + grid(3,i)/2
+
+                     wstob(1,i,ind) = xc + (ix-1)*bs + grid(1,i)*2
+                     wstob(2,i,ind) = yc + (iy-1)*bs + grid(2,i)*2
+                     wstob(3,i,ind) = zc + (iz-1)*bs + grid(3,i)*2
+                  enddo
+               enddo
+            else
+c     only outer x positions possible
+               do ix = -1,2,3
+                  ind = ind+1
+                  do i = 1,ngrid
+                     wbtos(1,i,ind) = xc + ix*bsh + grid(1,i)/2
+                     wbtos(2,i,ind) = yc + iy*bsh + grid(2,i)/2
+                     wbtos(3,i,ind) = zc + iz*bsh + grid(3,i)/2
+
+                     wstob(1,i,ind) = xc + (ix-1)*bs + grid(1,i)*2
+                     wstob(2,i,ind) = yc + (iy-1)*bs + grid(2,i)*2
+                     wstob(3,i,ind) = zc + (iz-1)*bs + grid(3,i)*2
+                  enddo
+               enddo
+            endif
+         enddo
+      enddo
+         
+      return
+      end
+c
 c
 c
 c
