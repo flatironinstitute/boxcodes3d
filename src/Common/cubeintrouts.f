@@ -3,7 +3,13 @@ c
 c        routines in this file
 c         
 c           ccubeints_adap - completely adaptive integration
-c                       for the cube patch
+c                       for the quad patch
+c
+c           ccubeints_split8int_adap - first split integral into
+c              8 cubes given a point inside the cube, 
+c              followed by adaptive integration
+c              on each of the individual cubes
+c        
 c
 c
 c         We integrate against legendre polynomials on the standard
@@ -20,7 +26,7 @@ c
 c
 
       subroutine ccubeints_adap(eps,
-     1     norder,type,npols,ntarg,xyztarg,ncmax,
+     1     norder,ttype,npols,ntarg,xyztarg,ncmax,
      3     fker,dpars,zpars,ipars,nqorder,cintvals)
 
 c
@@ -31,7 +37,8 @@ c          dy \, ,
 c
 c        P_{n}(y) are Legendre polynomials on [-1,1]
 c
-c        using adaptive integration
+c        using adaptive integration, no precomputation
+c        and storage requirements
 c
 c
 c        input arguments:
@@ -41,7 +48,7 @@ c        norder: order of polynomials on the patch
 c        npols = norder*norder*norder if (type=f)
 c                norder*(norder+1)*(norder+2)/6 if(type=t)
 c
-c        type = total degree ('t') or full degree ('f') 
+c        ttype = total degree ('t') or full degree ('f') 
 c          polynomials to be integrated
 c
 c        ntarg - total number of target points
@@ -90,7 +97,7 @@ c
 
       complex *16 cintvals(npols,ntarg)
 
-      character type
+      character ttype
 
 c
 c       tree variables
@@ -185,30 +192,18 @@ c
       ldu = 1
       ldv = 1
       itype = 1
-      call legetens_exps_3d(itype,nqorder,type,uvsq,u,ldu,v,ldv,wts)
+      call legetens_exps_3d(itype,nqorder,ttype,uvsq,u,ldu,v,ldv,wts) 
 
 
       allocate(uvtmp(3,nqpols))
      
       npmax = ncmax*nqpols
-      allocate(sigvals(npols,npmax))
-      allocate(uvvals(3,npmax),qwts(npmax))
+      allocate(sigvals(npols,nqpols))
+      allocate(uvvals(3,nqpols),qwts(nqpols))
 
-c
+cs
 c      current number of cubes in the adaptive structure
 c
-      ncube = 1
-c
-c        intialize sigvals for root quad
-c
-
-      ndeg = norder-1
-      call mapuv_cube(tvs(1,1,1),nqpols,uvsq,uvvals)
-      do i=1,nqpols
-        call legetens_pols_3d(uvvals(1,i),ndeg,type,sigvals(1,i))
-        qwts(i) = wts(i)
-      enddo
-
 
 
 c
@@ -218,17 +213,378 @@ c
        
       nlmax = 20 
       do itarg=1,ntarg
+        ncube = 1
+c
+c        intialize sigvals for root quad
+c
+
+        ndeg = norder-1
+        call mapuv_cube(tvs(1,1,1),nqpols,uvsq,uvvals)
+        do i=1,nqpols
+          call legetens_pols_3d(uvvals(1,i),ndeg,ttype,sigvals(1,i))
+          qwts(i) = wts(i)
+        enddo
         
         call cubeadap(eps,nqorder,nqpols,nlmax,ncmax,ncube,
      1    ichild_start,tvs,da,uvsq,wts, 
-     1    norder,type,npols,npmax,uvvals,qwts,sigvals,xyztarg(1,itarg),
+     1    norder,ttype,npols,npmax,uvvals,qwts,sigvals,xyztarg(1,itarg),
      3    fker,dpars,zpars,ipars,cintvals(1,itarg))
       enddo
 
 
       return
       end
+c
+c
+c
+c
+c
+c
+c
 
+      subroutine ccubeints_split8int_adap(eps,
+     1     norder,ttype,npols,xyzsplit,ntarg,xyztarg,ncmax,
+     3     fker,dpars,zpars,ipars,nqorder,cintvals)
+
+c
+c       this subroutine computes the integrals
+c
+c       \int_{[-1,1]^3} K(x_{i},y) P_{n}(y_{1}) P_{m}(y_{2})P_{m}(y_{3}) 
+c          dy \, ,
+c
+c        P_{n}(y) are Legendre polynomials on [-1,1]
+c
+c        using adaptive integration on 8 cubes
+c        which meet at the point xyzsplit, no precomputation
+c        and storage requirements
+c
+c
+c        input arguments:
+c        eps:     requested precision 
+c
+c        norder: order of polynomials on the patch 
+c        npols = norder*norder*norder if (type=f)
+c                norder*(norder+1)*(norder+2)/6 if(type=t)
+c        xyzsplit(3): location to split the cube into 8
+c
+c        ttype = total degree ('t') or full degree ('f') 
+c          polynomials to be integrated
+c
+c        ntarg - total number of target points
+c        xyztarg(3,ntarg) - location of target points 
+c        ncmax - max number of cubes in adaptive integration 
+c        fker - function handle for evaluating the kernel k
+c 
+c               expected calling sequence
+c               fker(x,y,dpars,zpars,ipars,f)
+c               x \in \mathbb{R}^{3}, y \in \mathbb{R}^{3}
+c               the output is complex *16 
+
+c         dpars(*) - real parameters for the fker routine
+c         zpars(*) - complex parameters for the fker routine
+c         ipars(*) - integer parameters for the fker routine
+c         nqorder - order of quadrature nodes on each subquad
+c                   to be used
+c
+c         output:
+c
+c         cintvals(npols,ntarg) - integrals at all targets
+c                                  for all tensor product
+c                                  legendre polynomials
+c
+c
+c
+      implicit none
+
+c
+cc     calling sequence variables
+c
+      real *8 eps
+      integer norder,npols
+      
+      integer ntarg
+      real *8 xyztarg(3,ntarg),xyzsplit(3)
+      
+      external fker
+      real *8 dpars(*)
+      complex *16 zpars(*)
+      integer ipars(*)
+
+      integer nqorder
+
+      integer ncmax
+
+      complex *16 cintvals(npols,ntarg)
+      complex *16, allocatable :: cinttmp(:,:)
+
+      character ttype
+
+c
+c       tree variables
+c
+      integer nlmax,ltree
+      real *8, allocatable :: tvs(:,:,:),da(:)
+      integer, allocatable :: ichild_start(:)
+
+      integer ncube,nlev,icube,istart,i,j,k
+      integer ier,itarg,jj,jstart,npts
+      integer iqquad,ii
+
+
+      integer npmax
+
+      real *8, allocatable :: uvsq(:,:),wts(:),uvtmp(:,:)
+      real *8, allocatable :: umattmp(:,:),vmattmp(:,:)
+      integer nqpols
+      real *8, allocatable :: sigvals(:,:)
+      real *8, allocatable :: uvvals(:,:),qwts(:)
+      integer itmp
+
+      character *1 transa,transb
+      real *8 alpha,beta,ra
+      integer lda,ldb,ldc
+      real *8 u, v,eps_use
+      integer ldu, ldv, itype,ndeg,l
+      
+c
+c       for each quad, we just store three pieces
+c       of info
+c         quad vertices
+c         area of quad
+c         ichild_start = index for first child, 
+c         
+c
+      allocate(ichild_start(ncmax),tvs(3,4,ncmax))
+      allocate(da(ncmax))
+      allocate(cinttmp(npols,ntarg))
+c
+c       get quadrature nodes and weights on the base quad
+c       based on quadrature type
+c
+
+      nqpols = nqorder*nqorder*nqorder
+      allocate(uvsq(3,nqpols),wts(nqpols))
+
+      do itarg=1,ntarg
+        do l=1,npols
+          cintvals(l,itarg) = 0
+
+        enddo
+      enddo
+
+      ldu = 1
+      ldv = 1
+      itype = 1
+      call legetens_exps_3d(itype,nqorder,ttype,uvsq,u,ldu,v,ldv,wts) 
+
+
+      allocate(uvtmp(3,nqpols))
+     
+      npmax = ncmax*nqpols
+      allocate(sigvals(npols,nqpols))
+      allocate(uvvals(3,nqpols),qwts(nqpols))
+c
+c
+c        quad vertices nomenclature
+c
+c       v3
+c        ________ 
+c        |       |
+c        |       |
+c        |       |
+c        ---------
+c        v1       v2
+c
+c   and v4 is the +len in z direction from v1
+c
+c
+
+
+
+
+
+       
+      nlmax = 20 
+      do icube = 1,8
+
+        do i=1,ncmax
+          ichild_start(i) = -1
+          da(i) = 0
+          do j=1,3
+            do k=1,2
+              tvs(k,j,i) = 0
+            enddo
+          enddo
+        enddo
+
+        if(icube.eq.1) then
+          tvs(1,1,1) = -1
+          tvs(2,1,1) = -1
+          tvs(3,1,1) = -1
+
+          tvs(1,2,1) = xyzsplit(1)
+          tvs(2,2,1) = -1
+          tvs(3,2,1) = -1
+
+          tvs(1,3,1) = -1
+          tvs(2,3,1) = xyzsplit(2)
+          tvs(3,3,1) = -1
+
+          tvs(1,4,1) = -1
+          tvs(2,4,1) = -1
+          tvs(3,4,1) = xyzsplit(3)
+        else if(icube.eq.2) then
+          tvs(1,1,1) = xyzsplit(1)
+          tvs(2,1,1) = -1
+          tvs(3,1,1) = -1
+
+          tvs(1,2,1) = 1
+          tvs(2,2,1) = -1
+          tvs(3,2,1) = -1
+
+          tvs(1,3,1) = xyzsplit(1)
+          tvs(2,3,1) = xyzsplit(2)
+          tvs(3,3,1) = -1
+
+          tvs(1,4,1) = xyzsplit(1)
+          tvs(2,4,1) = -1
+          tvs(3,4,1) = xyzsplit(3)
+        else if(icube.eq.3) then
+          tvs(1,1,1) = -1
+          tvs(2,1,1) = xyzsplit(2)
+          tvs(3,1,1) = -1
+
+          tvs(1,2,1) = xyzsplit(1)
+          tvs(2,2,1) = xyzsplit(2)
+          tvs(3,2,1) = -1
+
+          tvs(1,3,1) = -1
+          tvs(2,3,1) = 1 
+          tvs(3,3,1) = -1
+
+          tvs(1,4,1) = -1
+          tvs(2,4,1) = xyzsplit(2)
+          tvs(3,4,1) = xyzsplit(3)
+        else if(icube.eq.4) then
+          tvs(1,1,1) = xyzsplit(1)
+          tvs(2,1,1) = xyzsplit(2)
+          tvs(3,1,1) = -1
+
+          tvs(1,2,1) = 1 
+          tvs(2,2,1) = xyzsplit(2)
+          tvs(3,2,1) = -1
+
+          tvs(1,3,1) = xyzsplit(1)
+          tvs(2,3,1) = 1 
+          tvs(3,3,1) = -1
+
+          tvs(1,4,1) = xyzsplit(1)
+          tvs(2,4,1) = xyzsplit(2)
+          tvs(3,4,1) = xyzsplit(3)
+
+        else if(icube.eq.5) then
+          tvs(1,1,1) = -1
+          tvs(2,1,1) = -1
+          tvs(3,1,1) = xyzsplit(3)
+
+          tvs(1,2,1) = xyzsplit(1)
+          tvs(2,2,1) = -1
+          tvs(3,2,1) = xyzsplit(3)
+
+          tvs(1,3,1) = -1
+          tvs(2,3,1) = xyzsplit(2)
+          tvs(3,3,1) = xyzsplit(3)
+
+          tvs(1,4,1) = -1
+          tvs(2,4,1) = -1
+          tvs(3,4,1) = 1 
+        else if(icube.eq.6) then
+          tvs(1,1,1) = xyzsplit(1)
+          tvs(2,1,1) = -1
+          tvs(3,1,1) = xyzsplit(3)
+
+          tvs(1,2,1) = 1
+          tvs(2,2,1) = -1
+          tvs(3,2,1) = xyzsplit(3)
+
+          tvs(1,3,1) = xyzsplit(1)
+          tvs(2,3,1) = xyzsplit(2)
+          tvs(3,3,1) = xyzsplit(3)
+
+          tvs(1,4,1) = xyzsplit(1)
+          tvs(2,4,1) = -1
+          tvs(3,4,1) = 1 
+        else if(icube.eq.7) then
+          tvs(1,1,1) = -1
+          tvs(2,1,1) = xyzsplit(2)
+          tvs(3,1,1) = xyzsplit(3) 
+
+          tvs(1,2,1) = xyzsplit(1)
+          tvs(2,2,1) = xyzsplit(2)
+          tvs(3,2,1) = xyzsplit(3) 
+
+          tvs(1,3,1) = -1
+          tvs(2,3,1) = 1 
+          tvs(3,3,1) = xyzsplit(3) 
+
+          tvs(1,4,1) = -1
+          tvs(2,4,1) = xyzsplit(2)
+          tvs(3,4,1) = 1 
+        else if(icube.eq.8) then
+          tvs(1,1,1) = xyzsplit(1)
+          tvs(2,1,1) = xyzsplit(2)
+          tvs(3,1,1) = xyzsplit(3)
+
+          tvs(1,2,1) = 1 
+          tvs(2,2,1) = xyzsplit(2)
+          tvs(3,2,1) = xyzsplit(3)
+
+          tvs(1,3,1) = xyzsplit(1)
+          tvs(2,3,1) = 1 
+          tvs(3,3,1) = xyzsplit(3) 
+
+          tvs(1,4,1) = xyzsplit(1)
+          tvs(2,4,1) = xyzsplit(2)
+          tvs(3,4,1) = 1 
+        endif
+        
+        da(1) = (tvs(1,2,1)-tvs(1,1,1))*(tvs(2,3,1)-tvs(2,1,1))*
+     1        (tvs(3,4,1)-tvs(3,1,1))/8
+        eps_use = eps*sqrt(da(1))
+
+        do itarg=1,ntarg
+          ncube = 1
+c
+c        intialize sigvals for root quad
+c
+
+          ndeg = norder-1
+          call mapuv_cube(tvs(1,1,1),nqpols,uvsq,uvvals)
+          do i=1,nqpols
+            call legetens_pols_3d(uvvals(1,i),ndeg,ttype,sigvals(1,i))
+            qwts(i) = wts(i)*da(1)
+          enddo
+          do l=1,npols
+            cinttmp(l,itarg) = 0
+          enddo
+        
+          call cubeadap(eps_use,nqorder,nqpols,nlmax,ncmax,ncube,
+     1      ichild_start,tvs,da,uvsq,wts, 
+     1      norder,ttype,npols,npmax,uvvals,qwts,sigvals,
+     1      xyztarg(1,itarg),
+     3      fker,dpars,zpars,ipars,cinttmp(1,itarg))
+          do l=1,npols
+            cintvals(l,itarg) = cintvals(l,itarg) + cinttmp(l,itarg)
+
+          enddo
+        enddo 
+      enddo
+
+
+      return
+      end
+c
+c
 c
 c
 c
@@ -236,7 +592,7 @@ c
 c
       subroutine cubeadap(eps,m,kpols,nlmax,ncmax,ncube,
      1             ichild_start,tvs,da,uvsq,wts,
-     1             norder,type,npols,npmax,uvvals,qwts,
+     1             norder,ttype,npols,npmax,uvvals,qwts,
      2             sigvals,xt,fker,dpars,zpars,
      3             ipars,cintall)
 
@@ -268,13 +624,13 @@ c        uvsq(kpols) - integration nodes on standard quad
 c        wts(kpols) - integration weights on standard quad
 c        npols - total number of koornwinder polynomials to be integrated
 c        norder - order of polynomials to be integrated 
-c        type - type (full or total) 
-c        npols - norder*norder*norder if type =f, 
-c                norder*(norder+1)*(norder+2)/6 if type =t
+c        ttype - ttype (full or total) 
+c        npols - norder*norder*norder if ttype =f, 
+c                norder*(norder+1)*(norder+2)/6 if ttype =t
 c        npmax - max number of points = ncmax*kpols
-c        uvvals(3,npmax) - geometry info on heirarchy of meshes
-c        qwts(npmax) - quadrature weights 
-c        sigvals(npols,npmax) - 
+c        uvvals(3,kpols) - geometry info on heirarchy of meshes
+c        qwts(kpols) - quadrature weights 
+c        sigvals(npols,kpols) - 
 c                   tensor product GL polynomials computed along the adaptive grid
 c        
 c        OUT:
@@ -289,8 +645,8 @@ c
       real *8 tvs(3,4,ncmax), uvsq(3,kpols),wts(kpols)
       integer nproclist0, nproclist
       integer idone
-      real *8 sigvals(npols,npmax)
-      real *8 uvvals(3,*),qwts(*)
+      real *8 sigvals(npols,kpols)
+      real *8 uvvals(3,kpols),qwts(kpols)
       complex *16, allocatable :: xkernvals(:)
       real *8 xt(3),xs(3)
       complex *16 cintall(npols),fval,ctmp(npols)
@@ -300,7 +656,7 @@ c
       complex *16 zpars(*)
       integer ipars(*)
 
-      character type
+      character ttype
       
       external fker
 
@@ -309,13 +665,15 @@ c         for historic reasons
 c
       ksigpols = npols
       allocate(istack(2*ncmax))
+      nproclist0 = 1
+      istack(1) = 1
       allocate(cvals(ksigpols,ncmax))
 
       do i=1,ksigpols
          cvals(i,1) = 0
       enddo
 
-      allocate(xkernvals(npmax))
+      allocate(xkernvals(kpols))
 
 c
 cc      compute integral at level 0
@@ -333,12 +691,10 @@ c
         cintall(i) = cvals(i,1)
       enddo
 
-      nproclist0 = 1
-      istack(1) = 1
 
 
       call cubeadap_main(eps,kpols,nlmax,ncmax,ncube,ichild_start,
-     1      tvs,da,uvsq,wts,norder,type,npols,
+     1      tvs,da,uvsq,wts,norder,ttype,npols,
      2      npmax,uvvals,qwts,sigvals,xt,fker,dpars,
      3      zpars,ipars,cvals,istack,nproclist0,
      4      xkernvals,cintall)
@@ -353,7 +709,7 @@ c
 c
        
       subroutine cubeadap_main(eps,kpols,nlmax,ncmax,ncube,
-     1    ichild_start,tvs,da,uvsq,wts,norder,type,npols,
+     1    ichild_start,tvs,da,uvsq,wts,norder,ttype,npols,
      2    npmax,uvvals,qwts,sigvals,xt,fker,dpars,
      3    zpars,ipars,cvals,istack,nproclist0,xkernvals,
      4    cintall)
@@ -364,27 +720,25 @@ c
       integer ichild_start(ncmax)
       real *8 da(ncmax)
       real *8 tvs(3,4,ncmax), uvsq(3,kpols),wts(kpols)
+      real *8 uvvals(3,kpols),qwts(kpols)
       integer  nproclist
       integer idone
-      real *8 sigvals(npols,npmax)
-      complex *16 xkernvals(npmax)
+      real *8 sigvals(npols,kpols)
+      complex *16 xkernvals(kpols)
       real *8 xt(3)
-      real *8 uvvals(3,*),qwts(*)
       complex *16 cintall(npols),fval,ctmp(npols)
       complex *16 cvals(npols,ncmax)
 
-      character type
+      character ttype
 
       real *8 dpars(*)
       complex *16 zpars(*)
       integer ipars(*)
 
-      real *8, allocatable :: uvtmp(:,:)
       character *1 transa,transb
       integer lda,ldb,ldc
       external fker
       
-      allocate(uvtmp(3,kpols))
 
 
 c
@@ -401,65 +755,21 @@ c
         do iproc = 1,nproclist0
           icube = istack(iproc)
 
+          if(ncube+8.gt.ncmax) then
+            print *, "Too many quads in cquadadap"
+            print *, "Exiting without computing anything"
 
-c
-c           check to see if quad already has 
-c           children, if not, set children
-c           and compute necessary info
-c
-          if(ichild_start(icube).eq.-1) then
-
-c
-c            current quad doesn't have children,
-c            compute necessary info
-c
-
-            if(ncube+8.gt.ncmax) then
-               print *, "Too many quads in cquadadap"
-               print *, "Exiting without computing anything"
-
-               return
-            endif
-            
-            ichild_start(icube) = ncube+1
-            call getcubechildren(tvs(1,1,icube),tvs(1,1,ncube+1),
-     1             tvs(1,1,ncube+2),tvs(1,1,ncube+3),tvs(1,1,ncube+4),
-     2             tvs(1,1,ncube+5),tvs(1,1,ncube+6),tvs(1,1,ncube+7),
-     3             tvs(1,1,ncube+8))
-            
-
-            ndeg = norder-1
-
-            rr = 0.125d0*da(icube)
-            do j=ncube+1,ncube+8
-              da(j) = rr
-              istart = (j-1)*kpols+1
-              call mapuv_cube(tvs(1,1,j),kpols,uvsq,uvvals(1,istart))
-              do i=1,kpols
-                ii = istart+i-1
-                call legetens_pols_3d(uvvals(1,ii),ndeg,type,
-     1               sigvals(1,ii))
-                qwts(ii) = rr*wts(i)
-              enddo
-            enddo
-            ncube = ncube+8
+            return
           endif
+            
+          ichild_start(icube) = ncube+1
+          call getcubechildren(tvs(1,1,icube),tvs(1,1,ncube+1),
+     1           tvs(1,1,ncube+2),tvs(1,1,ncube+3),tvs(1,1,ncube+4),
+     2           tvs(1,1,ncube+5),tvs(1,1,ncube+6),tvs(1,1,ncube+7),
+     3           tvs(1,1,ncube+8))
+            
 
-        
-c
-cc           compute xkernvals
-c
-          icubec1 = ichild_start(icube)
-          istart = (icubec1-1)*kpols
-          do j=1,kfine
-            jj=j+istart
-            call fker(uvvals(1,jj),xt,dpars,
-     1         zpars,ipars,fval)
-            xkernvals(jj) = fval*qwts(jj)
-          enddo
-
-          nfunev = nfunev + kfine
-
+          ndeg = norder-1
 c
 cc         subtract contribution of current quad
 c          
@@ -468,33 +778,35 @@ c
             ctmp(isig) = 0
           enddo
 
-c
-cc        add in contributions of quads 
-c
-          do icubec=icubec1,icubec1+7
+
+          rr = 0.125d0*da(icube)
+          do j=ncube+1,ncube+8
+            da(j) = rr
+            call mapuv_cube(tvs(1,1,j),kpols,uvsq,uvvals)
+            do i=1,kpols
+              call legetens_pols_3d(uvvals(1,i),ndeg,ttype,
+     1               sigvals(1,i))
+              call fker(uvvals(1,i),xt,dpars,
+     1         zpars,ipars,fval)
+              xkernvals(i) = fval*wts(i)*rr
+            enddo
             do isig=1,ksigpols
-              cvals(isig,icubec) = 0
+              cvals(isig,j) = 0
             enddo
 
-            istart = (icubec-1)*kpols
             do k=1,kpols
-              ii = istart+k
               do isig=1,ksigpols
-                cvals(isig,icubec) = cvals(isig,icubec)+xkernvals(ii)*
-     1                                  sigvals(isig,ii)
+                cvals(isig,j) = cvals(isig,j) + xkernvals(k)*
+     1             sigvals(isig,k)
               enddo
             enddo
-              
             do isig=1,ksigpols
-              cintall(isig) = cintall(isig) + cvals(isig,icubec)
-              ctmp(isig) = ctmp(isig)+cvals(isig,icubec)
+              cintall(isig) = cintall(isig) + cvals(isig,j)
+              ctmp(isig) = ctmp(isig)+cvals(isig,j)
             enddo
           enddo
 
-c
-cc        compare integral of children to integral of parent
-c         to determine if the children need to be refined further
-c
+
           errmax = 0
           do isig=1,ksigpols
             if(abs(ctmp(isig)-cvals(isig,icube)).gt.errmax) 
@@ -503,18 +815,18 @@ c
 
           if(errmax.gt.eps) then
             idone = 0
-            
             do j=1,8
-              istack(nproclist0+nproclist+j) = icubec1+j-1
+              istack(nproclist0+nproclist+j) = ncube+j
             enddo
             nproclist = nproclist+8
           endif
-c
+          ncube = ncube+8
 cc        end of looping over all quads at current stage
         enddo
 cc         if idone is still 1, that means that no more refinement
 c          is needed
          if(idone.eq.1) goto 1111
+         
         do i=1,nproclist
           istack(i) = istack(nproclist0+i)
         enddo
