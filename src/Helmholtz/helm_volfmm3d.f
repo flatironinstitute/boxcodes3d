@@ -1,6 +1,6 @@
       subroutine helmholtz_volume_fmm(eps,zk,nboxes,nlevels,ltree,
      1   itree,iptr,norder,ncbox,ttype,fvals,centers,boxsize,npbox,
-     2   pot,timeinfo,tprecomp)
+     2   pot,potcoefs,timeinfo,tprecomp)
 
 c
 c       This code applies the Helmholtz volume layer potential
@@ -50,6 +50,11 @@ c         pot - double complex (npbox,nboxes)
 c            volume potential on the tree structure (note that 
 c            the potential is non-zero only in the leaf boxes
 c
+c         pot_coefs - double complex (ncbox,nboxes)
+c            volume potential coefficients on the tree structure 
+c            (note that 
+c            the potential is non-zero only in the leaf boxes
+c
       implicit real *8 (a-h,o-z)
       real *8 eps
       complex * 16 zk
@@ -58,6 +63,7 @@ c
       character *1 ttype
       complex *16 fvals(npbox,nboxes)
       complex *16 pot(npbox,nboxes)
+      complex *16 potcoefs(ncbox,nboxes)
       real *8 centers(3,nboxes)
       real *8 boxsize(0:nlevels)
       real *8 timeinfo(6),tprecomp(3)
@@ -86,7 +92,7 @@ c
       call helmholtz_volume_fmm_wprecomp(eps,zk,nboxes,nlevels,
      1   ltree,itree,iptr,norder,ncbox,ttype,fvals,centers,boxsize,
      2   mpcoefsmat,impcoefsmat,lmpcoefsmat,tamat,itamat,
-     3   ltamat,tab,itab,ltab,npbox,pot,timeinfo)
+     3   ltamat,tab,itab,ltab,npbox,pot,potcoefs,timeinfo)
       
 
       return
@@ -264,7 +270,7 @@ c
 
       itab(0) = 1
       ltab = 0
-      llev0 = 10*npbox*ncbox
+      llev0 = 10*ncbox*ncbox
       do ilev=0,nlevels
          ilevrel(ilev) = 0
          do ibox=itree(2*ilev+1),itree(2*ilev+2)
@@ -357,6 +363,11 @@ c
       integer nterms(0:nlevels),ilevrel(0:nlevels)
       real *8 rscales(0:nlevels),tprecomp(3)
 
+      real *8, allocatable :: x(:,:),pmat(:,:),pmat_qr(:,:)
+      real *8, allocatable :: pmat_tau(:),pols(:)
+      integer, allocatable :: pmat_jpvt(:),ipt2depth(:,:)
+      integer, allocatable :: idepth2pt(:,:,:)
+
       real *8, allocatable :: wlege(:)
 
 c
@@ -444,12 +455,45 @@ C$      t1 = omp_get_wtime()
 
 
       ndeg = norder-1
-      ntarg0 = 10*npbox
+      nptmax = npbox
+      allocate(x(3,nptmax))
+      allocate(ipt2depth(3,nptmax),idepth2pt(norder,norder,norder))
+
+      ifloor = 1.75d0*ncbox
+      call fakepolya3d(norder,ifloor,npt,x,ipt2depth,idepth2pt)
+      itype = 0
+      call prinf('npt=*',npt,1)
+      call prin2('rat=*',(npt+0.0d0)/(nptmax+0.0d0),1)
+      call prin2('x=*',x,3*npt)
+
+
+      allocate(pmat(npt,ncbox),pmat_qr(npt,ncbox),pols(ncbox))
+      allocate(pmat_tau(ncbox),pmat_jpvt(ncbox))
+
+      do i=1,npt
+        call legetens_pols_3d(x(1,i),ndeg,ttype,pols)
+        do j=1,ncbox
+          pmat(i,j) = pols(j)
+        enddo
+      enddo
+
+      call get_qrdecomp(npt,ncbox,pmat,pmat_qr,pmat_jpvt,pmat_tau)
+
+
+
+
+      ldtab = 10*ncbox
+c
+c  This needs fixing..
+c
+      nup = 8
+      iflg = 1
       do ilev=0,nlevels
         nnn = itab(ilev+1)-itab(ilev)
         if(nnn.gt.0) then
           zk2 = zk*boxsize(ilev)/2.0d0 
-          call h3dtabp_ref(ndeg,zk2,eps,tab(itab(ilev)),ntarg0)
+          call h3dtabp_ref(ndeg,zk2,eps,npt,x,tab(itab(ilev)),ldtab,
+     1       nup,iflg,pmat_qr,ncbox,pmat_jpvt,pmat_tau,tt1,tt2,tt3)
         endif
       enddo
       call cpu_time(t2)
@@ -470,7 +514,7 @@ c
       subroutine helmholtz_volume_fmm_wprecomp(eps,zk,nboxes,nlevels,
      1   ltree,itree,iptr,norder,ncbox,ttype,fvals,centers,boxsize,
      2   mpcoefsmat,impcoefsmat,lmpcoefsmat,tamat,itamat,
-     3   ltamat,tab,itab,ltab,npbox,pot,timeinfo)
+     3   ltamat,tab,itab,ltab,npbox,pot,potcoefs,timeinfo)
 
 c
 c       This code applies the Helmholtz volume layer potential
@@ -546,7 +590,7 @@ c
       integer nboxes,nlevels,ltree
       integer itree(ltree),iptr(8),ncbox,npbox,ncc
       complex *16 fvals(npbox,nboxes)
-      complex *16 pot(npbox,nboxes)
+      complex *16 pot(npbox,nboxes),potcoefs(ncbox,nboxes)
       double precision boxsize(0:nlevels),centers(3,nboxes)
 
       integer ltamat,ltab,lmpcoefsmat
@@ -616,7 +660,7 @@ c
       complex *16, allocatable :: tabcoll(:,:,:),tabbtos(:,:,:),
      1   tabstob(:,:,:)
       complex *16, allocatable :: tabtmp(:,:)
-      complex *16, allocatable :: rhs(:,:),vals(:,:)
+      complex *16, allocatable :: rhs(:,:),vals(:,:),coefs(:,:)
       complex *16 ac,bc,ima
 
       real *8 ra,rb
@@ -1413,13 +1457,13 @@ C$       time1 = omp_get_wtime()
 
       call get_list1(nboxes,nlevels,itree,ltree,iptr,
      1   centers,boxsize,nlist1_detailed,list1_detailed)
-      
 
 
-      ntarg0 = 10*npbox
-      allocate(tabcoll(npbox,ncbox,4))
-      allocate(tabbtos(npbox,ncbox,3),tabstob(npbox,ncbox,3))
-      allocate(tabtmp(npbox,ncbox))
+      ldtab = 10*ncbox
+      potcoefs = 0
+      allocate(tabcoll(ncbox,ncbox,4))
+      allocate(tabbtos(ncbox,ncbox,3),tabstob(ncbox,ncbox,3))
+      allocate(tabtmp(ncbox,ncbox))
 
 c
 c      load table symmetries
@@ -1449,8 +1493,8 @@ c          then compute near field quadrature
           ac = boxsize(ilev)**2/4.0d0
           bc = 0
 
-          call splitreftab3d(tab(itab(ilev)),ntarg0,tabcoll,tabbtos,
-     1        tabstob,npbox,ncbox)
+          call splitreftab3dcc(tab(itab(ilev)),ldtab,tabcoll,tabbtos,
+     1        tabstob,ncbox)
           
           call prin2('done splitting table*',i,0)
 
@@ -1470,13 +1514,13 @@ c
      1            list1_detailed,ijboxlist,ntype)
 
             if(ntype.gt.0) then
-               allocate(rhs(ncbox,ntype),vals(npbox,ntype))
+               allocate(rhs(ncbox,ntype),coefs(ncbox,ntype))
 cc               print *,iref(ibtype),idimp(1:3,ibtype),iflip(1:3,ibtype)
 cc               call prinf('iref=*',iref(ibtype),1)
 
-               call buildtabfromsyms3d(ndeg,ttype,iref(ibtype),
+               call buildtabfromsyms3dcc(ndeg,ttype,iref(ibtype),
      1           idimp(1,ibtype),iflip(1,ibtype),tabcoll,tabtmp,
-     2           npbox,ncbox)
+     2           ncbox)
 cc               call prinf('ibtype=*',ibtype,1)
 cc               call prin2('tabtmp=*',tabtmp,npbox*ncbox*2)
                
@@ -1484,17 +1528,20 @@ cc               call prin2('tabtmp=*',tabtmp,npbox*ncbox*2)
 
 cc               call prin2('rhs=*',rhs,ncbox*ntype*2)
               
-               call zgemm('n','n',npbox,ntype,ncbox,ac,tabtmp,npbox,
-     1             rhs,ncbox,bc,vals,npbox)
+               call zgemm('n','n',ncbox,ntype,ncbox,ac,tabtmp,ncbox,
+     1             rhs,ncbox,bc,coefs,ncbox)
                
 cc               call prin2('vals=*',vals,2*npbox*ntype) 
 
-               call scatter_vals(ntype,ijboxlist,pot,npbox,nboxes,vals)
+               call scatter_vals(ntype,ijboxlist,potcoefs,ncbox,
+     1            nboxes,coefs)
 
-               deallocate(rhs,vals)
+               deallocate(rhs,coefs)
                
             endif
           enddo
+
+          print *, "Done with neighbors"
 c
 c           handle big to small
 c
@@ -1506,11 +1553,11 @@ c
      1            list1_detailed,ijboxlist,ntype)
 
             if(ntype.gt.0) then
-               allocate(rhs(ncbox,ntype),vals(npbox,ntype))
+               allocate(rhs(ncbox,ntype),coefs(ncbox,ntype))
 
-               call buildtabfromsyms3d(ndeg,ttype,irefbtos(ibtype),
+               call buildtabfromsyms3dcc(ndeg,ttype,irefbtos(ibtype),
      1           idimpbtos(1,ibtype),iflipbtos(1,ibtype),tabbtos,tabtmp,
-     2           npbox,ncbox)
+     2           ncbox)
 cc               call prinf('ibtype=*',ibtype,1)
 cc               call prin2('tabtmp=*',tabtmp,npbox*ncbox*2)
                
@@ -1518,14 +1565,15 @@ cc               call prin2('tabtmp=*',tabtmp,npbox*ncbox*2)
 
 cc               call prin2('rhs=*',rhs,ncbox*ntype*2)
               
-               call zgemm('n','n',npbox,ntype,ncbox,ac,tabtmp,npbox,
-     1             rhs,ncbox,bc,vals,npbox)
+               call zgemm('n','n',ncbox,ntype,ncbox,ac,tabtmp,ncbox,
+     1             rhs,ncbox,bc,coefs,ncbox)
                
 cc               call prin2('vals=*',vals,2*npbox*ntype) 
 
-               call scatter_vals(ntype,ijboxlist,pot,npbox,nboxes,vals)
+               call scatter_vals(ntype,ijboxlist,potcoefs,ncbox,
+     1            nboxes,coefs)
 
-               deallocate(rhs,vals)
+               deallocate(rhs,coefs)
                
             endif
           enddo
@@ -1540,11 +1588,11 @@ c
      1            list1_detailed,ijboxlist,ntype)
 
             if(ntype.gt.0) then
-               allocate(rhs(ncbox,ntype),vals(npbox,ntype))
+               allocate(rhs(ncbox,ntype),coefs(ncbox,ntype))
 
-               call buildtabfromsyms3d(ndeg,ttype,irefstob(ibtype),
+               call buildtabfromsyms3dcc(ndeg,ttype,irefstob(ibtype),
      1           idimpstob(1,ibtype),iflipstob(1,ibtype),tabstob,tabtmp,
-     2           npbox,ncbox)
+     2           ncbox)
 cc               call prinf('ibtype=*',ibtype,1)
 cc               call prin2('tabtmp=*',tabtmp,npbox*ncbox*2)
                
@@ -1552,14 +1600,15 @@ cc               call prin2('tabtmp=*',tabtmp,npbox*ncbox*2)
 
 cc               call prin2('rhs=*',rhs,ncbox*ntype*2)
               
-               call zgemm('n','n',npbox,ntype,ncbox,ac,tabtmp,npbox,
-     1             rhs,ncbox,bc,vals,npbox)
+               call zgemm('n','n',ncbox,ntype,ncbox,ac,tabtmp,ncbox,
+     1             rhs,ncbox,bc,coefs,ncbox)
                
 cc               call prin2('vals=*',vals,2*npbox*ntype) 
 
-               call scatter_vals(ntype,ijboxlist,pot,npbox,nboxes,vals)
+               call scatter_vals(ntype,ijboxlist,potcoefs,ncbox,
+     1             nboxes,coefs)
 
-               deallocate(rhs,vals)
+               deallocate(rhs,coefs)
                
             endif
           enddo
@@ -1575,8 +1624,35 @@ C$      time2 = omp_get_wtime()
 cc      call prin2('pot=*',pot,2*npbox*nboxes)
 
       deallocate(fimat)
+
+
       call prin2('done with fmm*',i,0)
+c
+c
+c  convert coefs back to vals and add to potential
+c
+      ra = 1.0d0
+      rb = 1.0d0
+      do ibox=1,nboxes
+        call dgemm('n','t',2,npbox,ncbox,ra,potcoefs(1,ibox),
+     1    2,vmat,npbox,rb,pot(1,ibox),2)
+      enddo
+      
+c
+c   recompute coefs correctly now
+c
+c
+      potcoefs = 0
+
+      ra = 1.0d0
+      rb = 0.0d0
+      do ibox=1,nboxes
+        call dgemm('n','t',2,ncbox,npbox,ra,pot(1,ibox),
+     1    2,umat,ncbox,rb,potcoefs(1,ibox),2)
+      enddo
+      
       call prin2('fmm timeinfo=*',timeinfo,6)
+
 
       return
       end

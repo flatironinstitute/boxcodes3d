@@ -1,22 +1,22 @@
 
 EXEC = int2-fmm
 
-#HOST = osx
+HOST = osx
 #HOST=linux-gfortran
 #HOST=linux-ifort
 #HOST=linux-gfortran-prof
-HOST=linux-gfortran-openmp
+#HOST=linux-gfortran-openmp
 
 ifeq ($(HOST),osx)
 FC = gfortran
-FFLAGS = -O3 -march=native --openmp -funroll-loops -c -w
+FFLAGS = -fPIC -O3 -march=native --openmp -funroll-loops -c -w -std=legacy
 FLINK = gfortran -w --openmp -o $(EXEC)
 FEND = -lopenblas ${LDFLAGS}
 endif
 
 ifeq ($(HOST),linux-gfortran)
 FC = gfortran
-FFLAGS = -fPIC -O3 -march=native -funroll-loops -c -w  
+FFLAGS = -fPIC -O3 -march=native -funroll-loops -c -w -std=legacy 
 FLINK = gfortran -w -o $(EXEC) 
 FEND = -lopenblas -L/usr/local/opt/openblas/lib 
 endif
@@ -32,8 +32,7 @@ ifeq ($(HOST),linux-gfortran-openmp)
 FC = gfortran
 FFLAGS = -fPIC -O3 -march=native -c --openmp
 FLINK = gfortran -w --openmp -o $(EXEC) 
-FEND = -lopenblas -L/usr/local/opt/openblas/lib
-FEND = -lblas -llapack
+FEND = -lopenblas -L/usr/local/opt/openblas/lib 
 endif
 
 ifeq ($(HOST),linux-ifort)
@@ -54,7 +53,7 @@ UTILS_DIR = ../../../utils
 SOURCES =  test_ls_solver.f \
   $(SRC)/Common/prini_new.f \
   $(UTILS_DIR)/legeexps.f \
-  $(SRC)/Common/tree_vol.f \
+  $(SRC)/Common/tree_vol_coeffs.f \
   $(SRC)/Common/legetens.f \
   $(SRC)/Common/voltab3d.f \
   $(SRC)/Helmholtz/h3dvol.f \
@@ -69,10 +68,13 @@ SOURCES =  test_ls_solver.f \
   $(SRC)/Common/qleigen_trid.f \
   $(SRC)/Common/yrecursion.f \
   $(SRC)/Common/quadintrouts.f \
+  $(SRC)/Common/quadintrouts2.f \
   $(SRC)/Common/loadsyms3d.f \
   $(SRC)/Common/squarearbq.f \
   $(SRC)/Common/zerrf.f \
-  $(SRC)/Common/rotmat_gmres.f \
+  $(SRC)/Common/fakepolya3d.f \
+  $(SRC)/Helmholtz/h3danti.f \
+  $(SRC)/Common/qrdecomp_routs.f90 \
   $(FMM3D)/Helmholtz/hpwrouts.f \
   $(FMM3D)/Helmholtz/h3dtrans.f \
   $(FMM3D)/Helmholtz/h3dterms.f \
@@ -84,6 +86,7 @@ SOURCES =  test_ls_solver.f \
   $(FMM3D)/Common/fmmcommon.f \
   $(FMM3D)/Common/rotgen.f \
   $(FMM3D)/Common/dfft.f \
+  $(FMM3D)/Common/tree_routs3d.f \
   $(FMM3D)/Helmholtz/h3dcommon.f \
   $(FMM3D)/Helmholtz/hwts3e.f \
   $(FMM3D)/Helmholtz/hnumphys.f \
@@ -91,6 +94,7 @@ SOURCES =  test_ls_solver.f \
   $(UTILS_DIR)/hkrand.f \
   $(UTILS_DIR)/dlaran.f \
   $(SRC)/Common/aquad.f \
+  $(SRC)/Common/rotmat_gmres.f \
   $(SRC)/Common/cerf.f90 \
 
 ifeq ($(WITH_SECOND),1)

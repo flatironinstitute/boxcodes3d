@@ -9,7 +9,7 @@ HOST = osx
 
 ifeq ($(HOST),osx)
 FC = gfortran
-FFLAGS = -O3 -march=native --openmp -funroll-loops -c -w -std=legacy
+FFLAGS = -fPIC -O3 -march=native --openmp -funroll-loops -c -w -std=legacy
 FLINK = gfortran -w --openmp -o $(EXEC)
 FEND = -lopenblas ${LDFLAGS}
 endif
@@ -53,7 +53,7 @@ UTILS_DIR = ../../../utils
 SOURCES =  test_helm_volfmm3d.f \
   $(SRC)/Common/prini_new.f \
   $(UTILS_DIR)/legeexps.f \
-  $(SRC)/Common/tree_vol.f \
+  $(SRC)/Common/tree_vol_coeffs.f \
   $(SRC)/Common/legetens.f \
   $(SRC)/Common/voltab3d.f \
   $(SRC)/Helmholtz/h3dvol.f \
@@ -71,6 +71,9 @@ SOURCES =  test_helm_volfmm3d.f \
   $(SRC)/Common/loadsyms3d.f \
   $(SRC)/Common/squarearbq.f \
   $(SRC)/Common/zerrf.f \
+  $(SRC)/Common/fakepolya3d.f \
+  $(SRC)/Helmholtz/h3danti.f \
+  $(SRC)/Common/qrdecomp_routs.f90 \
   $(FMM3D)/Helmholtz/hpwrouts.f \
   $(FMM3D)/Helmholtz/h3dtrans.f \
   $(FMM3D)/Helmholtz/h3dterms.f \

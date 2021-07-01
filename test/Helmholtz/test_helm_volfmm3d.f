@@ -9,6 +9,7 @@
       complex *16 zk,zpars
 
       complex *16, allocatable :: pot(:,:),potex(:,:)
+      complex *16, allocatable :: potcoefs(:,:)
       complex *16 ima,zz,ztmp
 
       real *8 alpha,beta
@@ -55,7 +56,7 @@ cc      rsig = 0.005d0
 
       npbox = norder*norder*norder
 
-      eps = 1.0d-5
+      eps = 1.0d-4
       call cpu_time(t1)
 C$      t1 = omp_get_wtime()
 
@@ -86,7 +87,7 @@ C$      t2 = omp_get_wtime()
       call prin2('speed in points per sec=*',
      1   (nboxes*norder**3+0.0d0)/(t2-t1),1)
 
-      eps = 1.0d-5
+      eps = 1.0d-4
 
 
 c
@@ -98,10 +99,16 @@ c
 
 
       allocate(pot(npbox,nboxes))
+      allocate(potcoefs(npols,nboxes))
 
       do i=1,nboxes
         do j=1,npbox
           pot(j,i) = 0
+        enddo
+
+        do j=1,npols
+          potcoefs(j,i) = 0
+
         enddo
       enddo
 
@@ -111,11 +118,10 @@ c
 C$     t1 = omp_get_wtime()      
       call helmholtz_volume_fmm(eps,zk,nboxes,nlevels,ltree,itree,
      1   iptr,norder,npols,type,fvals,centers,boxsize,npbox,
-     2   pot,timeinfo,tprecomp)
+     2   pot,potcoefs,timeinfo,tprecomp)
       call cpu_time(t2) 
 C$     t2 = omp_get_wtime()      
       call prin2('time taken in fmm=*',t2-t1,1)
-
       nlfbox = 0
       do ilevel=1,nlevels
         do ibox=itree(2*ilevel+1),itree(2*ilevel+2)
@@ -150,7 +156,8 @@ c
       allocate(xref(3,npbox),umat(npols,npbox),vmat(npbox,npols),
      1    wts(npbox))
       call legetens_exps_3d(itype,norder,'t',xref,umat,1,vmat,1,wts)
-
+      ictrmax = 5
+      ictr= 0
       do ilevel=1,nlevels
         do ibox=itree(2*ilevel+1),itree(2*ilevel+2)
           if(itree(iptr(4)+ibox-1).eq.0) then
@@ -171,9 +178,14 @@ c
 
               zz = exp(-ima*zk*r)*ztmp
               potex(j,ibox) = c/r*(-real(zz)+ima*sin(zk*r))
+              
 
               rr1 = imag(potex(j,ibox))
               rr2 = imag(pot(j,ibox))
+
+              if(ictr.le.ictrmax) then
+cc                print *, ibox,j,rr1,rr2
+              endif
 
 
               erra = erra + abs(pot(j,ibox)-potex(j,ibox))**2

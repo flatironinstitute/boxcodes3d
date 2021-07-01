@@ -10,7 +10,7 @@
       real *8 timeinfo(6),tprecomp(3)
       complex *16 zk,zpars
 
-      complex *16, allocatable :: pot(:,:),soln(:,:)
+      complex *16, allocatable :: pot(:,:),soln(:,:),potcoefs(:,:)
       complex *16 ima,zz,ztmp
 
       real *8 alpha,beta
@@ -117,6 +117,7 @@ c
 
 
       allocate(soln(npbox,nboxes),pot(npbox,nboxes))
+      allocate(potcoefs(npols,nboxes))
       numit = 200
       niter = 0
       irep = 1
@@ -135,7 +136,7 @@ c
 C$     t1 = omp_get_wtime()      
         call helmholtz_volume_fmm(eps,zk,nboxes,nlevels,ltree,itree,
      1    iptr,norder,npols,ttype,soln,centers,boxsize,npbox,
-     2    pot,timeinfo,tprecomp)
+     2    pot,potcoefs,timeinfo,tprecomp)
       call cpu_time(t2) 
 C$     t2 = omp_get_wtime()      
       call prin2('time taken in fmm=*',t2-t1,1)

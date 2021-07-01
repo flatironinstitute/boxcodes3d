@@ -85,6 +85,7 @@ c
       real *8 tprecomp(3)
       integer irep
       complex *16 sigma(npbox,nboxes)
+      complex *16, allocatable :: tmp_coefs(:,:)
       complex *16 temp,ztmp
 c
 c       fmm precomp variables
@@ -113,6 +114,7 @@ c
       allocate(cs(numit),sn(numit))
       allocate(wtmp(npbox,nboxes),svec(numit+1),yvec(numit+1))
       allocate(wtmp2(npbox,nboxes))
+      allocate(tmp_coefs(ncbox,nboxes))
 
 c
 c       get precomputation arrays for current tree structure
@@ -143,7 +145,7 @@ c
         call helmholtz_volume_fmm_wprecomp(eps,zk,nboxes,nlevels,
      1  ltree,itree,iptr,norder,ncbox,ttype,rhs,centers,
      2  boxsize,mpcoefsmat,impcoefsmat,lmpcoefsmat,tamat,itamat,
-     3  ltamat,tab,itab,ltab,npbox,rhsuse,timeinfo)
+     3  ltamat,tab,itab,ltab,npbox,rhsuse,tmp_coefs,timeinfo)
        endif
 
 c
@@ -225,7 +227,7 @@ c
         call helmholtz_volume_fmm_wprecomp(eps,zk,nboxes,nlevels,
      1  ltree,itree,iptr,norder,ncbox,ttype,wtmp2,centers,
      2  boxsize,mpcoefsmat,impcoefsmat,lmpcoefsmat,tamat,itamat,
-     3  ltamat,tab,itab,ltab,npbox,wtmp,timeinfo)
+     3  ltamat,tab,itab,ltab,npbox,wtmp,tmp_coefs,timeinfo)
 
 
         if(irep.eq.1) then
@@ -365,7 +367,7 @@ c
           call helmholtz_volume_fmm_wprecomp(eps,zk,nboxes,nlevels,
      1     ltree,itree,iptr,norder,ncbox,ttype,wtmp2,centers,
      2     boxsize,mpcoefsmat,impcoefsmat,lmpcoefsmat,tamat,itamat,
-     3     ltamat,tab,itab,ltab,npbox,wtmp,timeinfo)
+     3     ltamat,tab,itab,ltab,npbox,wtmp,tmp_coefs,timeinfo)
        
           if(irep.eq.1) then
             do ibox=1,nboxes
@@ -485,6 +487,7 @@ c
 
 
       complex *16, allocatable :: rhsuse(:,:), rhsprime(:,:), rhsj(:,:)
+      complex *16, allocatable :: tmp_coefs(:,:)
       complex *16, allocatable, dimension(:,:) :: p, ap, s, as, wtmp2 
       complex *16, allocatable :: mpcoefsmat(:),tamat(:),tab(:)
       integer impcoefsmat(0:nlevels+1),itamat(0:nlevels+1)
@@ -515,6 +518,7 @@ c     blas function types
       pi = atan(done)*4
       
       nall = nboxes*npbox
+      allocate(tmp_coefs(ncbox,nboxes))
       
 
 c     
@@ -554,7 +558,7 @@ c
          call helmholtz_volume_fmm_wprecomp(eps,zk,nboxes,nlevels,
      1        ltree,itree,iptr,norder,ncbox,ttype,rhs,centers,
      2        boxsize,mpcoefsmat,impcoefsmat,lmpcoefsmat,tamat,itamat,
-     3        ltamat,tab,itab,ltab,npbox,rhsuse,timeinfo)
+     3        ltamat,tab,itab,ltab,npbox,rhsuse,tmp_coefs,timeinfo)
       endif
 
 c     if a restart necessary, rhsprime can change!
@@ -766,6 +770,7 @@ c
       real *8 centers(3,nboxes),boxsize(0:nlevels)
       integer irep
       complex *16 p(npbox,nboxes), ap(npbox,nboxes), wtmp2(npbox,nboxes)
+      complex *16, allocatable :: tmp_coefs(:,:)
 c     
 c     fmm precomp variables
 c     
@@ -777,7 +782,7 @@ c
       
       integer ibox, j
       
-      
+      allocate(tmp_coefs(ncbox,nboxes)) 
       if(irep.eq.2) then
          do ibox=1,nboxes
             do j=1,npbox
@@ -804,7 +809,7 @@ c
       call helmholtz_volume_fmm_wprecomp(eps,zk,nboxes,nlevels,
      1     ltree,itree,iptr,norder,ncbox,ttype,wtmp2,centers,
      2     boxsize,mpcoefsmat,impcoefsmat,lmpcoefsmat,tamat,itamat,
-     3     ltamat,tab,itab,ltab,npbox,ap,timeinfo)
+     3     ltamat,tab,itab,ltab,npbox,ap,tmp_coefs,timeinfo)
 
 
       if(irep.eq.1) then

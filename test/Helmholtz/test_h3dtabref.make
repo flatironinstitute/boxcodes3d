@@ -2,8 +2,8 @@
 EXEC = int2-opt-h3dtabref 
 
 HOST = osx
-HOST=linux-gfortran
-#HOST=linux-gfortran-openmp
+#HOST=linux-gfortran
+HOST=linux-gfortran-openmp
 #HOST=linux-gfortran-debug
 
 ifeq ($(HOST),osx)
