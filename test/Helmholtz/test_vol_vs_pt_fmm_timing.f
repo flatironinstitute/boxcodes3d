@@ -62,6 +62,7 @@ c
       complex *16 zk,zpars
 
       complex *16, allocatable :: pot(:,:),potex(:,:)
+      complex *16, allocatable :: potcoefs(:,:)
       complex *16 ima,zz,ztmp
 
       real *8 alpha,beta
@@ -175,7 +176,7 @@ c
       npols = norder*(norder+1)*(norder+2)/6
 
 
-      allocate(pot(npbox,nboxes))
+      allocate(pot(npbox,nboxes),potcoefs(npols,nboxes))
 
       do i=1,nboxes
         do j=1,npbox
@@ -189,7 +190,7 @@ c
 C$     t1 = omp_get_wtime()      
       call helmholtz_volume_fmm(eps,zk,nboxes,nlevels,ltree,itree,
      1   iptr,norder,npols,type,fvals,centers,boxsize,npbox,
-     2   pot,timeinfo,tprecomp)
+     2   pot,potcoefs,timeinfo,tprecomp)
       call cpu_time(t2) 
 C$     t2 = omp_get_wtime()      
       call prin2('time taken in fmm=*',t2-t1,1)
@@ -242,7 +243,7 @@ C$     t2 = omp_get_wtime()
       call cpu_time(t1)
 C$       t1 = omp_get_wtime()      
 
-      call hfmm3d_s_c_p(eps,zk,nsrc,sources,charges,potfmm)
+      call hfmm3d_s_c_p(eps,zk,nsrc,sources,charges,potfmm,ier)
       call cpu_time(t2)
 C$       t2 = omp_get_wtime()     
       tfmm = t2-t1

@@ -464,7 +464,6 @@ C$      t1 = omp_get_wtime()
       itype = 0
       call prinf('npt=*',npt,1)
       call prin2('rat=*',(npt+0.0d0)/(nptmax+0.0d0),1)
-      call prin2('x=*',x,3*npt)
 
 
       allocate(pmat(npt,ncbox),pmat_qr(npt,ncbox),pols(ncbox))

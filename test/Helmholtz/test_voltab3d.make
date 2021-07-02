@@ -1,109 +1,103 @@
-
-EXEC = int2-opt-h3dtabref 
-
-HOST = osx
-#HOST=linux-gfortran
-#HOST=linux-gfortran-openmp
-#HOST=linux-gfortran-debug
-
-BLAS = -lopenblas
-BLAS = -lblas -llapack
-
-ifeq ($(HOST),osx)
-FC = gfortran
-FFLAGS = -fPIC -O3 -march=native -funroll-loops -c -w -fopenmp -std=legacy
-FLINK = gfortran -w -fopenmp -std=legacy -o $(EXEC)
-FEND = $(BLAS) ${LDFLAGS}
-endif
-
-ifeq ($(HOST),linux-gfortran)
-FC = gfortran
-FFLAGS = -fPIC -O3 -march=native -funroll-loops -ftree-vectorize -ffast-math -c -w  
-FLINK = gfortran -w -o $(EXEC) 
-FEND = $(BLAS) 
-endif
-
-ifeq ($(HOST),linux-gfortran-debug)
-FC = gfortran
-FFLAGS = -g -c -w  
-FLINK = gfortran -w -g -o $(EXEC) 
-FEND = $(BLAS)
-endif
-
-ifeq ($(HOST),linux-gfortran-openmp)
-FC = gfortran
-FFLAGS = -fPIC -O3 -march=native -fopenmp -funroll-loops -c -w  
-FLINK = gfortran -w -fopenmp -o $(EXEC) 
-FEND = $(BLAS)
-endif
-
-ifeq ($(HOST),linux-ifort)
-FC = ifort
-FFLAGS = -O3 -c -w -xW 
-FLINK = ifort -w -mkl -o $(EXEC)
-WITH_SECOND = 1
-endif
-
-
-SRC = ../../src
-
-
-.PHONY: all clean list
-
-SOURCES =  test_voltab3d.f \
-  $(SRC)/Common/prini_new.f \
-  $(SRC)/Common/legeexps.f \
-  $(SRC)/Common/legetens.f \
-  $(SRC)/Common/squarearbq.f \
-  $(SRC)/Common/hkrand.f \
-  $(SRC)/Common/dlaran.f \
-  $(SRC)/Common/sphere_pol_routs.f \
-  $(SRC)/Common/ncleastsq.f \
-  $(SRC)/Common/svdpivot.f \
-  $(SRC)/Common/csvdpiv.f \
-  $(SRC)/Common/qleigen_trid.f \
-  $(SRC)/Common/yrecursion.f \
-  $(SRC)/Common/quadintrouts2.f \
-  $(SRC)/Common/quadintrouts.f \
-  $(SRC)/Common/voltab3d.f \
-  $(SRC)/Common/loadsyms3d.f \
-  $(SRC)/Common/fakepolya3d.f \
-  $(SRC)/Common/qrdecomp_routs.f90 \
-  $(SRC)/Helmholtz/lommel.f \
-  $(SRC)/Helmholtz/h3dtab.f \
-  $(SRC)/Helmholtz/h3dtab_brute.f \
-  $(SRC)/Helmholtz/h3danti.f \
-  $(SRC)/Common/cubeintrouts2.f
-
-
-ifeq ($(WITH_SECOND),1)
-SOURCES += $(HELLSKITCHEN)/Common/second-r8.f
-endif
-
-OBJECTS = $(patsubst %.f,%.o,$(patsubst %.f90,%.o,$(SOURCES)))
+EXEC = int2-voltab
+#HOST = gcc
+HOST = gcc-openmp
+#HOST = intel
+#HOST = intel-ompenmp
 
 #
-# use only the file part of the filename, then manually specify
-# the build location
+# For linux systems, it is assumed that the environment
+# variable LD_LIBRARY_PATH contains the locations to libfmm3d.so
+# for Macosx, the .so file also need to be copied over /usr/local/lib
+
+
+FMM_INSTALL_DIR = $(PREFIX_FMM)
+LBLAS = $(PREFIX_BLAS)
+LBLASINC = $(PREFIX_BLAS_INC)
+LFMMLINKLIB = -lfmm3d
+
+ifneq ($(OS),Windows_NT) 
+    UNAME_S := $(shell uname -s)
+    ifeq ($(UNAME_S),Darwin)
+        ifeq ($(PREFIX_FMM),)
+            FMM_INSTALL_DIR=/usr/local/lib
+        endif
+
+        ifeq ($(PREFIX_BLAS),)
+            LBLAS = -framework accelerate
+        endif
+    endif
+    ifeq ($(UNAME_S),Linux)
+        ifeq ($(PREFIX_FMM),)
+            FMM_INSTALL_DIR=${HOME}/lib
+        endif
+        ifeq ($(PREFIX_BLAS),)
+            LBLAS = -lblas -llapack
+        endif
+    endif
+endif
+
+
+ifeq ($(HOST),gcc)
+    FC=gfortran 
+    FFLAGS=-fPIC -O3 -funroll-loops -march=native -std=legacy 
+endif
+
+ifeq ($(HOST),gcc-openmp)
+    FC = gfortran 
+    FFLAGS=-fPIC -O3 -funroll-loops -march=native -fopenmp -std=legacy 
+endif
+
+ifeq ($(HOST),intel)
+    FC=ifort 
+    FFLAGS= -O3 -fPIC -march=native
+endif
+
+ifeq ($(HOST),intel-openmp)
+    FC = ifort 
+    FFLAGS= -O3 -fPIC -march=native -qopenmp
+endif
+
+FEND = -L${FMM_INSTALL_DIR} $(LFMMLINKLIB) $(LBLAS) $(LDBLASINC)
+
+
+
+# Test objects
 #
+COM = ../../src/Common
+HELM = ../../src/Helmholtz
 
-%.o : %.f
-	$(FC) $(FFLAGS) $< -o $@
+.PHONY: all clean
 
-%.o : %.f90
-	$(FC) $(FFLAGS) $< -o $@
-
-all: $(OBJECTS)
-	rm -f $(EXEC)
-	$(FLINK) $(OBJECTS) $(FEND)
-	./$(EXEC) 1 3 
-
-clean:
-	rm -f $(OBJECTS)
-	rm -f $(EXEC)
-
-list: $(SOURCES)
-	$(warning Requires:  $^)
+default: all
 
 
+OBJECTS = test_voltab3d.o \
+    $(COM)/legetens.o \
+    $(COM)/fakepolya3d.o \
+    $(COM)/hkrand.o \
+    $(COM)/dlaran.o \
+    $(HELM)/h3danti.o \
+    $(COM)/squarearbq.o \
+    $(COM)/quadintrouts.o \
+    $(COM)/cubeintrouts.o \
+    $(COM)/voltab3d.o \
+    $(COM)/qrdecomp_routs.o \
+    $(COM)/loadsyms3d.o \
+    $(HELM)/h3dtab.o \
+    $(HELM)/h3dtab_brute.o \
+    $(HELM)/helm_vol_kernels.o \
 
+all: $(OBJECTS) 
+	$(FC) $(FFLAGS)  -o $(EXEC) $(OBJECTS) $(FEND) 
+	./$(EXEC) 1 3
+
+
+# implicit rules for objects (note -o ensures writes to correct dir)
+%.o: %.f %.h
+	$(FC) -c $(FFLAGS) $< -o $@
+
+%.o: %.f90 
+	$(FC) -c $(FFLAGS) $< -o $@
+
+clean: 
+	rm -f $(OBJECTS) $(PROJECT) fort.13

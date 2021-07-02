@@ -102,8 +102,6 @@ c
       ncmax = 30000
       nqorder = 11
 
-      call prin2('zk=*',zpars,2)
-
       ntt = 1
       
       call cpu_time(t1)
@@ -221,8 +219,6 @@ c
       eps = tol 
       ncmax = 30000
       nqorder = 11
-
-      call prin2('zk=*',zpars,2)
 
       ntt = 1
       

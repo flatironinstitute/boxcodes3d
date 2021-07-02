@@ -140,9 +140,6 @@ c     memory for coeffs, etc.
 
       call h3danti_form(ndeg,nup,type,zk,ahcleg3,npolout,derrmax,
      1   errsup,errsdown)
-      call prin2('derrmax=*',derrmax,1)
-      call prin2('errsup=*',errsup,12)
-      call prin2('errsdown=*',errsdown,12)
 c
 c  get 1d interpolation matrix
 c
