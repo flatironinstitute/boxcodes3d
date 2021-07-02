@@ -47,7 +47,7 @@ cc      rsig = 0.005d0
      
 
       zk = 2.0d0
-      norder = 4
+      norder = 8
       iptype = 0
       eta = 2
 
@@ -56,7 +56,7 @@ cc      rsig = 0.005d0
 
       npbox = norder*norder*norder
 
-      eps = 1.0d-4
+      eps = 1.0d-3
       call cpu_time(t1)
 C$      t1 = omp_get_wtime()
 
@@ -87,7 +87,7 @@ C$      t2 = omp_get_wtime()
       call prin2('speed in points per sec=*',
      1   (nboxes*norder**3+0.0d0)/(t2-t1),1)
 
-      eps = 1.0d-4
+      eps = 1.0d-3
 
 
 c
@@ -156,9 +156,9 @@ c
       allocate(xref(3,npbox),umat(npols,npbox),vmat(npbox,npols),
      1    wts(npbox))
       call legetens_exps_3d(itype,norder,'t',xref,umat,1,vmat,1,wts)
-      ictrmax = 5
-      ictr= 0
       do ilevel=1,nlevels
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ibox,j,x,y,z,dx,dy,dz,r)
+C$OMP$PRIVATE(zz,nn,ztmp,rr1,rr2) REDUCTION(+:erra,ra)
         do ibox=itree(2*ilevel+1),itree(2*ilevel+2)
           if(itree(iptr(4)+ibox-1).eq.0) then
             do j=1,npbox
@@ -183,22 +183,33 @@ c
               rr1 = imag(potex(j,ibox))
               rr2 = imag(pot(j,ibox))
 
-              if(ictr.le.ictrmax) then
-cc                print *, ibox,j,rr1,rr2
-              endif
-
-
               erra = erra + abs(pot(j,ibox)-potex(j,ibox))**2
               ra = ra + abs(potex(j,ibox))**2
             enddo
           endif
         enddo
+C$OMP END PARALLEL DO        
       enddo
 
 
       erra = sqrt(erra/ra)
       call prin2('erra=*',erra,1)
       call prin2('ra=*',ra,1)
+
+      i1 = 0
+      ntests = 1
+      if(erra.lt.eps) i1 = 1
+
+
+      nsuccess = i1
+
+      open(unit=33,file='../../print_testres.txt',access='append')
+      write(33,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess,
+     1  ' out of ',ntests,' in h3d volume fmm testing suite'
+      write(*,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess,
+     1  ' out of ',ntests,' in h3d volume fmm testing suite'
+      close(33)
+      
 
       stop
       end

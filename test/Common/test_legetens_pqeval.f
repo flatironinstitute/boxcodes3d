@@ -13,6 +13,11 @@
 
       call prini(6,13)
 
+      tol = 1.0d-5
+      ntests = 2
+      i1 = 0
+      i2 = 0
+
       ttype = 't'
 
       p = 15
@@ -124,6 +129,7 @@ c
 
       erra = sqrt(erra/ra)
       call prin2('error f=*',erra,1)
+      if(erra.lt.tol) i1 = 1
 
 
       ttype = 't'
@@ -141,6 +147,16 @@ c
 
       erra = sqrt(erra/ra)
       call prin2('error t=*',erra,1)
+      if(erra.lt.tol) i2 = 1
+
+      nsuccess = i1 + i2
+
+      open(unit=33,file='../../print_testres.txt',access='append')
+      write(33,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess,
+     1  ' out of ',ntests,' in legepq testing suite'
+      write(*,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess,
+     1  ' out of ',ntests,' in legepq testing suite'
+      close(33)
 
       stop
       end

@@ -1,75 +1,92 @@
+EXEC = int2-cube
+#HOST = gcc
+HOST = gcc-openmp
+#HOST = intel
+#HOST = intel-ompenmp
 
-EXEC = triaintrouts
+#
+# For linux systems, it is assumed that the environment
+# variable LD_LIBRARY_PATH contains the locations to libfmm3d.so
+# for Macosx, the .so file also need to be copied over /usr/local/lib
 
-HOST = osx
-#HOST=linux-gfortran
 
-ifeq ($(HOST),osx)
-FC = gfortran
-FFLAGS = -O3 -march=native -funroll-loops -std=legacy -c -w
-FLINK = gfortran -w -o $(EXEC)
-FEND = -framework accelerate
+FMM_INSTALL_DIR = $(PREFIX_FMM)
+LBLAS = $(PREFIX_BLAS)
+LBLASINC = $(PREFIX_BLAS_INC)
+LFMMLINKLIB = -lfmm3d
+
+ifneq ($(OS),Windows_NT) 
+    UNAME_S := $(shell uname -s)
+    ifeq ($(UNAME_S),Darwin)
+        ifeq ($(PREFIX_FMM),)
+            FMM_INSTALL_DIR=/usr/local/lib
+        endif
+
+        ifeq ($(PREFIX_BLAS),)
+            LBLAS = -framework accelerate
+        endif
+    endif
+    ifeq ($(UNAME_S),Linux)
+        ifeq ($(PREFIX_FMM),)
+            FMM_INSTALL_DIR=${HOME}/lib
+        endif
+        ifeq ($(PREFIX_BLAS),)
+            LBLAS = -lblas -llapack
+        endif
+    endif
 endif
 
-ifeq ($(HOST),linux-gfortran)
-FC = gfortran
-FFLAGS = -O3 -march=native -funroll-loops -ftree-vectorize -ffast-math -c -w  
-FLINK = gfortran -w -o $(EXEC) 
-FEND = -lblas -llapack
+
+ifeq ($(HOST),gcc)
+    FC=gfortran 
+    FFLAGS=-fPIC -O3 -funroll-loops -march=native -std=legacy 
 endif
 
-ifeq ($(HOST),linux-ifort)
-FC = ifort
-FFLAGS = -O3 -c -w -xW 
-FLINK = ifort -w -mkl -o $(EXEC)
-WITH_SECOND = 1
+ifeq ($(HOST),gcc-openmp)
+    FC = gfortran 
+    FFLAGS=-fPIC -O3 -funroll-loops -march=native -fopenmp -std=legacy 
 endif
 
+ifeq ($(HOST),intel)
+    FC=ifort 
+    FFLAGS= -O3 -fPIC -march=native
+endif
 
+ifeq ($(HOST),intel-openmp)
+    FC = ifort 
+    FFLAGS= -O3 -fPIC -march=native -qopenmp
+endif
+
+FEND = -L${FMM_INSTALL_DIR} $(LFMMLINKLIB) $(LBLAS) $(LDBLASINC)
+
+
+
+# Test objects
+#
 COM = ../../src/Common
 HELM = ../../src/Helmholtz
 
+.PHONY: all clean
 
-.PHONY: all clean list
-
-SOURCES =  test_cubeintrouts.f \
-  $(COM)/prini_new.f \
-  $(COM)/legeexps.f \
-  $(COM)/legetens.f \
-  $(COM)/hkrand.f \
-  $(COM)/dlaran.f \
-  $(COM)/cubeintrouts2.f \
-  $(COM)/aquad.f \
-  $(HELM)/h3dtab_brute.f \
-
-ifeq ($(WITH_SECOND),1)
-SOURCES += $(HELLSKITCHEN)/Common/second-r8.f
-endif
-
-OBJECTS = $(patsubst %.f,%.o,$(patsubst %.f90,%.o,$(SOURCES)))
-
-#
-# use only the file part of the filename, then manually specify
-# the build location
-#
-
-%.o : %.f
-	$(FC) $(FFLAGS) $< -o $@
-
-%.o : %.f90
-	$(FC) $(FFLAGS) $< -o $@
-
-all: $(OBJECTS)
-	rm -f $(EXEC)
-	$(FLINK) $(OBJECTS) $(FEND)
-	./$(EXEC) 2 
-
-clean:
-	rm -f $(OBJECTS)
-	rm -f $(EXEC)
-
-list: $(SOURCES)
-	$(warning Requires:  $^)
+default: all
 
 
+OBJECTS = test_cubeintrouts.o \
+    $(COM)/legetens.o \
+    $(COM)/squarearbq.o \
+    $(COM)/hkrand.o \
+    $(COM)/dlaran.o \
+    $(COM)/cubeintrouts.o \
+    $(HELM)/helm_vol_kernels.o \
 
+all: $(OBJECTS) 
+	$(FC) $(FFLAGS)  -o $(EXEC) $(OBJECTS) $(FEND) 
+	./$(EXEC)
+
+
+# implicit rules for objects (note -o ensures writes to correct dir)
+%.o: %.f %.h
+	$(FC) -c $(FFLAGS) $< -o $@
+
+clean: 
+	rm -f $(OBJECTS) $(PROJECT) fort.13

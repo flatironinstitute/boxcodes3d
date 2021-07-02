@@ -30,6 +30,9 @@
       read(arg_comm,*) ndeg
 
       n = ndeg + 1
+      ntests = 2
+      i1 = 0
+      i2 = 0
 
       nup = 8
 

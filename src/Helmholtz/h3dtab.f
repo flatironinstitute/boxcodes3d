@@ -140,9 +140,6 @@ c     memory for coeffs, etc.
 
       call h3danti_form(ndeg,nup,type,zk,ahcleg3,npolout,derrmax,
      1   errsup,errsdown)
-      call prin2('derrmax=*',derrmax,1)
-      call prin2('errsup=*',errsup,12)
-      call prin2('errsdown=*',errsdown,12)
 c
 c  get 1d interpolation matrix
 c
@@ -448,11 +445,11 @@ c$OMP& SCHEDULE(DYNAMIC)
 
           call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1       xyztarg_near(1,istart),nquadmax,h3d_slp,dpars,zpars,ipars,
-     2       nqorder,slp_near(1,istart))
+     2       nqorder,iflg,slp_near(1,istart))
 
           call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1       xyztarg_near(1,istart),nquadmax,h3d_dlp,dpars,zpars,ipars,
-     2       nqorder,dlp_near(1,istart))
+     2       nqorder,iflg,dlp_near(1,istart))
         enddo
 C$OMP END PARALLEL DO      
         t2 = second()
@@ -506,13 +503,13 @@ C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
 c$OMP& SCHEDULE(DYNAMIC)      
         do i=1,ntarg
 
-          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1     xyztarg(1,i),nquadmax,h3d_slp,dpars,zpars,ipars,
-     2     nqorder,slp_pots(1,i))
+     2     nqorder,iflg,slp_pots(1,i))
 
-          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1     xyztarg(1,i),nquadmax,h3d_dlp,dpars,zpars,ipars,
-     2     nqorder,dlp_pots(1,i))
+     2     nqorder,iflg,dlp_pots(1,i))
         enddo
 C$OMP END PARALLEL DO      
         t2 = second()
@@ -737,35 +734,35 @@ c$OMP& SCHEDULE(DYNAMIC)
 
           call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1       xyztarg_near(1,istart),nquadmax,h3d_slp,dpars,zpars,ipars,
-     2       nqorder,slp_near(1,istart))
+     2       nqorder,iflg,slp_near(1,istart))
 
           call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1       xyztarg_near(1,istart),nquadmax,h3d_sgradx,dpars,zpars,
-     2       ipars,nqorder,slp_gradx_near(1,istart))
+     2       ipars,nqorder,iflg,slp_gradx_near(1,istart))
 
           call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1       xyztarg_near(1,istart),nquadmax,h3d_sgrady,dpars,zpars,
-     2       ipars,nqorder,slp_grady_near(1,istart))
+     2       ipars,nqorder,iflg,slp_grady_near(1,istart))
 
           call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1       xyztarg_near(1,istart),nquadmax,h3d_sgradz,dpars,zpars,
-     2       ipars,nqorder,slp_gradz_near(1,istart))
+     2       ipars,nqorder,iflg,slp_gradz_near(1,istart))
 
           call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1       xyztarg_near(1,istart),nquadmax,h3d_dlp,dpars,zpars,ipars,
-     2       nqorder,dlp_near(1,istart))
+     2       nqorder,iflg,dlp_near(1,istart))
 
           call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1       xyztarg_near(1,istart),nquadmax,h3d_dgradx,dpars,zpars,
-     2       ipars,nqorder,dlp_gradx_near(1,istart))
+     2       ipars,nqorder,iflg,dlp_gradx_near(1,istart))
 
           call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1       xyztarg_near(1,istart),nquadmax,h3d_dgrady,dpars,zpars,
-     2       ipars,nqorder,dlp_grady_near(1,istart))
+     2       ipars,nqorder,iflg,dlp_grady_near(1,istart))
 
           call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1       xyztarg_near(1,istart),nquadmax,h3d_dgradz,dpars,zpars,
-     2       ipars,nqorder,dlp_gradz_near(1,istart))
+     2       ipars,nqorder,iflg,dlp_gradz_near(1,istart))
 
         enddo
 C$OMP END PARALLEL DO      
@@ -850,37 +847,37 @@ C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
 c$OMP& SCHEDULE(DYNAMIC)      
         do i=1,ntarg
 
-          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1     xyztarg(1,i),nquadmax,h3d_slp,dpars,zpars,ipars,
-     2     nqorder,slp_pots(1,i))
+     2     nqorder,iflg,slp_pots(1,i))
 
-          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1     xyztarg(1,i),nquadmax,h3d_sgradx,dpars,zpars,ipars,
-     2     nqorder,slp_gradx(1,i))
+     2     nqorder,iflg,slp_gradx(1,i))
 
-          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1     xyztarg(1,i),nquadmax,h3d_sgrady,dpars,zpars,ipars,
-     2     nqorder,slp_grady(1,i))
+     2     nqorder,iflg,slp_grady(1,i))
 
-          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1     xyztarg(1,i),nquadmax,h3d_sgradz,dpars,zpars,ipars,
-     2     nqorder,slp_gradz(1,i))
+     2     nqorder,iflg,slp_gradz(1,i))
 
-          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1     xyztarg(1,i),nquadmax,h3d_dlp,dpars,zpars,ipars,
-     2     nqorder,dlp_pots(1,i))
+     2     nqorder,iflg,dlp_pots(1,i))
 
-          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1     xyztarg(1,i),nquadmax,h3d_dgradx,dpars,zpars,ipars,
-     2     nqorder,dlp_gradx(1,i))
+     2     nqorder,iflg,dlp_gradx(1,i))
 
-          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1     xyztarg(1,i),nquadmax,h3d_dgrady,dpars,zpars,ipars,
-     2     nqorder,dlp_grady(1,i))
+     2     nqorder,iflg,dlp_grady(1,i))
 
-          call cquadints_adap2(eps,intype,norder_p,type,npols,ntt,
+          call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
      1     xyztarg(1,i),nquadmax,h3d_dgradz,dpars,zpars,ipars,
-     2     nqorder,dlp_gradz(1,i))
+     2     nqorder,iflg,dlp_gradz(1,i))
 
         enddo
 C$OMP END PARALLEL DO      

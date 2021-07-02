@@ -20,8 +20,6 @@
 
 
       call prini(6,13)
-      call prinf('enter n*',n,0)
-      read *, n
 
 
       norder = 8
@@ -94,16 +92,21 @@ c
       intype = 2
       nquadmax = 5000
 
+      iflg = 1
+
       type = 't'
       call cquadints_adap(eps,intype,norder,type,npols,ntarg,xyztarg,
-     1 nquadmax,h3d_sgradx,dpars,zpars,ipars,nqorder,slp_grad(1,1,1))
+     1 nquadmax,h3d_sgradx,dpars,zpars,ipars,nqorder,iflg,
+     2 slp_grad(1,1,1))
 
       call cquadints_adap(eps,intype,norder,type,npols,ntarg,xyztarg,
-     1 nquadmax,h3d_sgrady,dpars,zpars,ipars,nqorder,slp_grad(1,1,2))
+     1 nquadmax,h3d_sgrady,dpars,zpars,ipars,nqorder,iflg,
+     2 slp_grad(1,1,2))
 
 
       call cquadints_adap(eps,intype,norder,type,npols,ntarg,xyztarg,
-     1 nquadmax,h3d_sgradz,dpars,zpars,ipars,nqorder,slp_grad(1,1,3))
+     1 nquadmax,h3d_sgradz,dpars,zpars,ipars,nqorder,iflg,
+     2 slp_grad(1,1,3))
       nn = norder + 1
 
       slp_grad_ex(1,1,1) = 0.0d0 

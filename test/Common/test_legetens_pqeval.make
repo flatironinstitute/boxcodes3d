@@ -1,89 +1,89 @@
-
-EXEC = int2-vol_tree
-
-HOST = osx
-#HOST=linux-gfortran
-#HOST=linux-ifort
-#HOST=linux-gfortran-prof
-#HOST=linux-gfortran-openmp
-
-ifeq ($(HOST),osx)
-FC = gfortran
-FFLAGS = -O3 -march=native -funroll-loops -fopenmp -c -w -std=legacy
-FLINK = gfortran -w -fopenmp -std=legacy -o $(EXEC)
-FEND = -lopenblas ${LDFLAGS}
-endif
-
-ifeq ($(HOST),linux-gfortran)
-FC = gfortran
-FFLAGS = -O3 -march=native -funroll-loops -ftree-vectorize -ffast-math -c -w  
-FLINK = gfortran -w -o $(EXEC) 
-FEND = -lopenblas 
-endif
-
-ifeq ($(HOST),linux-gfortran-prof)
-FC = gfortran
-FFLAGS = -O3 -march=native -pg -g -funroll-loops -ftree-vectorize -ffast-math -c -w  
-FLINK = gfortran -w -o $(EXEC) -pg
-FEND = -lblas -llapack
-endif
-
-ifeq ($(HOST),linux-gfortran-openmp)
-FC = gfortran
-FFLAGS = -O3 -march=native -funroll-loops -ftree-vectorize -ffast-math -c -w  --openmp
-FLINK = gfortran -w --openmp -o $(EXEC) 
-FEND = -lopenblas -llapack
-endif
-
-ifeq ($(HOST),linux-ifort)
-FC = ifort
-FFLAGS = -O1 -g -c -w -xW -qopenmp 
-FLINK = ifort -w -qopenmp -o $(EXEC)
-WITH_SECOND = 1
-endif
-
-
-SRC = ../../src
-UTILS_DIR = ../../../utils
-
-
-.PHONY: all clean list
-
-SOURCES =  test_legetens_pqeval.f \
-  $(SRC)/Common/prini_new.f \
-  $(SRC)/Common/legeexps.f \
-  $(SRC)/Common/legetens.f \
-  $(UTILS_DIR)/hkrand.f \
-  $(UTILS_DIR)/dlaran.f \
-
-ifeq ($(WITH_SECOND),1)
-SOURCES += $(SRC)/second-r8.f
-endif
-
-OBJECTS = $(patsubst %.f,%.o,$(patsubst %.f90,%.o,$(SOURCES)))
+EXEC = int2-legepq
+#HOST = gcc
+HOST = gcc-openmp
+#HOST = intel
+#HOST = intel-ompenmp
 
 #
-# use only the file part of the filename, then manually specify
-# the build location
+# For linux systems, it is assumed that the environment
+# variable LD_LIBRARY_PATH contains the locations to libfmm3d.so
+# for Macosx, the .so file also need to be copied over /usr/local/lib
+
+
+FMM_INSTALL_DIR = $(PREFIX_FMM)
+LBLAS = $(PREFIX_BLAS)
+LBLASINC = $(PREFIX_BLAS_INC)
+LFMMLINKLIB = -lfmm3d
+
+ifneq ($(OS),Windows_NT) 
+    UNAME_S := $(shell uname -s)
+    ifeq ($(UNAME_S),Darwin)
+        ifeq ($(PREFIX_FMM),)
+            FMM_INSTALL_DIR=/usr/local/lib
+        endif
+
+        ifeq ($(PREFIX_BLAS),)
+            LBLAS = -framework accelerate
+        endif
+    endif
+    ifeq ($(UNAME_S),Linux)
+        ifeq ($(PREFIX_FMM),)
+            FMM_INSTALL_DIR=${HOME}/lib
+        endif
+        ifeq ($(PREFIX_BLAS),)
+            LBLAS = -lblas -llapack
+        endif
+    endif
+endif
+
+
+ifeq ($(HOST),gcc)
+    FC=gfortran 
+    FFLAGS=-fPIC -O3 -funroll-loops -march=native -std=legacy 
+endif
+
+ifeq ($(HOST),gcc-openmp)
+    FC = gfortran 
+    FFLAGS=-fPIC -O3 -funroll-loops -march=native -fopenmp -std=legacy 
+endif
+
+ifeq ($(HOST),intel)
+    FC=ifort 
+    FFLAGS= -O3 -fPIC -march=native
+endif
+
+ifeq ($(HOST),intel-openmp)
+    FC = ifort 
+    FFLAGS= -O3 -fPIC -march=native -qopenmp
+endif
+
+FEND = -L${FMM_INSTALL_DIR} $(LFMMLINKLIB) $(LBLAS) $(LDBLASINC)
+
+
+
+# Test objects
 #
+COM = ../../src/Common
+HELM = ../../src/Helmholtz
 
-%.o : %.f
-	$(FC) $(FFLAGS) $< -o $@
+.PHONY: all clean
 
-%.o : %.f90
-	$(FC) $(FFLAGS) $< -o $@
-
-all: $(OBJECTS)
-	rm -f $(EXEC)
-	$(FLINK) $(OBJECTS) $(FEND)
-	./$(EXEC) 2 
-
-clean:
-	rm -f $(OBJECTS)
-	rm -f $(EXEC)
-
-list: $(SOURCES)
-	$(warning Requires:  $^)
+default: all
 
 
+OBJECTS = test_legetens_pqeval.o \
+    $(COM)/legetens.o \
+    $(COM)/hkrand.o \
+    $(COM)/dlaran.o \
 
+all: $(OBJECTS) 
+	$(FC) $(FFLAGS)  -o $(EXEC) $(OBJECTS) $(FEND) 
+	./$(EXEC)
+
+
+# implicit rules for objects (note -o ensures writes to correct dir)
+%.o: %.f %.h
+	$(FC) -c $(FFLAGS) $< -o $@
+
+clean: 
+	rm -f $(OBJECTS) $(PROJECT) fort.13

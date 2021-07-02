@@ -2,13 +2,13 @@
       real *8, allocatable :: xyzs(:,:),f(:)
       call prini(6,13)
 
-      nlat = 300
+      nlat = 35
       nsc = 2
 
  1211 format(4(2x,e11.5))
       ntarg = nlat*nlat*nsc
       allocate(xyzs(3,ntarg),f(ntarg))
-      rsig = 0.1d0
+      rsig = 1.0d0
       i = 0
       do ilat=1,2
         do jlat=1,nlat
@@ -27,7 +27,7 @@
               xyzs(3,i) = 3 - 6*(llat-1.0d0)/(nlat-1.0d0)
             endif
             call fspiral1(nd,xyzs(1,i),rsig,zpars,ipars,f(i))
-            write(44+ilat,1211) xyzs(1,i),xyzs(2,i),xyzs(3,i),f(i)
+cc            write(44+ilat,1211) xyzs(1,i),xyzs(2,i),xyzs(3,i),f(i)
 
 
           enddo
