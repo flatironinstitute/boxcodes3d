@@ -29,7 +29,7 @@ performance for this task. The far field is accelerated using fast
 multipole methods.
 
 
-##Upcoming
+## Upcoming
 
 - Support for Maxwell and Stokes volume potentials
 - Python interfaces
