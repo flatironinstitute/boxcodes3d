@@ -485,7 +485,7 @@ C$      t1 = omp_get_wtime()
 c
 c  This needs fixing..
 c
-      nup = 8
+      nup = max(ndeg,5)
       iflg = 1
       do ilev=0,nlevels
         nnn = itab(ilev+1)-itab(ilev)
