@@ -12,8 +12,8 @@ For easy installation, choose an appropriate make.inc file based on your operati
 system and compiler,  and run ``make install'' in the FMM3D directory followed by ``make install''
 in this repository.
 
-To verify successful installation run ``make test'' or ``make test-dyn''. 
-Note that linking to the shared object in ``make test-dyn'' will require
+To verify successful installation run ``make test" or ``make test-dyn". 
+Note that linking to the shared object in ``make test-dyn" will require
 the LD_LIBRARY_PATH in linux to be appropriately set.
 
 To see examples of using the volume potential see the examples folder.
