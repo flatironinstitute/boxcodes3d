@@ -94,7 +94,7 @@ default: usage
 
 usage:
 	@echo "-------------------------------------------------------------------------"
-	@echo "Makefile for fmm3dbie. Specify what to make:"
+	@echo "Makefile for boxcodes3d. Specify what to make:"
 	@echo "  make install - compile and install the main library"
 	@echo "  make install PREFIX=(INSTALL_DIR) - compile and install the main library at custom location given by PREFIX"
 	@echo "  make lib - compile the main library (in lib/ and lib-static/)"
