@@ -1,3 +1,21 @@
+!
+!  This file contains codes for testing the
+!  routines contained in qrdecomp_routs.f90
+!  which contain simplied interfaces for 
+!  computing column pivoted qr using dgeqp3
+!  
+!  and then solving a collection of least square
+!  problems with either real or complex
+!  right hand sides.
+!
+!  
+!  This test can be run by either running make test in the 
+!  main directory of this repo or by
+!  running make -f test_cubeintrouts.make in the current
+!  directory
+!
+!
+
       implicit real *8 (a-h,o-z)
       real *8, allocatable :: x(:,:)
       real *8 done
