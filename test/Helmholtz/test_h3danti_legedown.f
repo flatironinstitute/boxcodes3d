@@ -24,6 +24,10 @@
       ndeg = 8
 
       tol = 1d-15
+      toltest = 1.0d-11
+      ntests = 2
+      i1 = 0
+      i2 = 0
 
       type = 't'
 
@@ -67,8 +71,6 @@
      1     ahmat3,npol,beta,res3,npol)
       
 
-c      call prin2('res 1 *',res1,npol*npol*2)
-c      call prin2('res 2 *',res2,npol*npol*2)
       
       sum = 0
       sum1 = 0
@@ -108,6 +110,19 @@ c      call prin2('res 2 *',res2,npol*npol*2)
 
       call prin2('residual recurrence *',sqrt(sum2/npol),1)
       call prin2('residual recurrence (fast?) *',sqrt(sum3/npol),1)
+
+      if(sqrt(sum2/npol).lt.toltest) i1 = 1
+      if(sqrt(sum3/npol).lt.toltest) i2 = 1
+
+      nsuccess = i1 + i2
+
+      open(unit=33,file='../../print_testres.txt',access='append')
+      write(33,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess,
+     1  ' out of ',ntests,' in h3d anti legedown testing suite'
+      write(*,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess,
+     1  ' out of ',ntests,' in h3d anti legedown testing suite'
+      close(33)
+      
 
       
       stop

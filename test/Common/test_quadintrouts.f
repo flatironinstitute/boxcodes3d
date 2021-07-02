@@ -116,7 +116,8 @@ c
 
       call cquadints_adap(eps,intype,norder,type,npols,ntarg,xyztarg,
      1       nquadmax,hdlp,dpars,zpars,ipars,nqorder,iflg,dlp)
-
+      
+      errmax = 0.0d0
       do i=1,ntarg
         print *, "itarg =", i
         print *, ""
@@ -131,12 +132,37 @@ c
         err3s = abs(slp(nn,i)-slp_ex(nn,i))
         err3d = abs(dlp(nn,i)-dlp_ex(nn,i))
 
+        if(err1s.gt.errmax) errmax = err1s
+        if(err2s.gt.errmax) errmax = err2s
+        if(err3s.gt.errmax) errmax = err3s
+
+        if(err1d.gt.errmax) errmax = err1d
+        if(err2d.gt.errmax) errmax = err2d
+        if(err3d.gt.errmax) errmax = err3d
+
+
         print *, "0,0 int=",err1s,err1d
         print *, "1,0 int=",err2s,err2d
         print *, "0,1 int=",err3s,err3d
         print *, ""
         print *, ""
       enddo
+
+      
+      i1 = 0
+      if(errmax.lt.eps) i1 = 1
+
+      nsuccess = i1
+      ntests = 1
+
+
+
+      open(unit=33,file='../../print_testres.txt',access='append')
+      write(33,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess,
+     1  ' out of ',ntests,' in quadintrouts testing suite'
+      write(*,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess,
+     1  ' out of ',ntests,' in quadintrouts testing suite'
+      close(33)
 
       return
       end

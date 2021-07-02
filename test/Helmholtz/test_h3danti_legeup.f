@@ -21,6 +21,10 @@ c$    use omp_lib
       
       call prini(6,13)
 
+      toltest = 1.0d-11
+      i1 = 0
+      i2 = 0
+      ntests  = 2
 
       ndeg = 11
       nup = 12
@@ -133,7 +137,19 @@ c      call prin2('res rec by col *',sums2,npol)
 
 
       call prin2('max err, legeup *',smax1,1)
-      call prin2('max err, legeupfast *',smax2,1)      
+      call prin2('max err, legeupfast *',smax2,1)     
+      if(smax1.lt.toltest) i1 = 1
+      if(smax2.lt.toltest) i2 = 1
+      
+
+      nsuccess = i1 + i2
+
+      open(unit=33,file='../../print_testres.txt',access='append')
+      write(33,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess,
+     1  ' out of ',ntests,' in h3d anti legeup testing suite'
+      write(*,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess,
+     1  ' out of ',ntests,' in h3d anti legeup testing suite'
+      close(33)
       
 
       stop

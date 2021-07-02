@@ -56,7 +56,7 @@ cc      rsig = 0.005d0
 
       npbox = norder*norder*norder
 
-      eps = 1.0d-7
+      eps = 1.0d-3
       call cpu_time(t1)
 C$      t1 = omp_get_wtime()
 
@@ -87,7 +87,7 @@ C$      t2 = omp_get_wtime()
       call prin2('speed in points per sec=*',
      1   (nboxes*norder**3+0.0d0)/(t2-t1),1)
 
-      eps = 1.0d-7
+      eps = 1.0d-3
 
 
 c
@@ -195,6 +195,21 @@ C$OMP END PARALLEL DO
       erra = sqrt(erra/ra)
       call prin2('erra=*',erra,1)
       call prin2('ra=*',ra,1)
+
+      i1 = 0
+      ntests = 1
+      if(erra.lt.eps) i1 = 1
+
+
+      nsuccess = i1
+
+      open(unit=33,file='../../print_testres.txt',access='append')
+      write(33,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess,
+     1  ' out of ',ntests,' in h3d volume fmm testing suite'
+      write(*,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess,
+     1  ' out of ',ntests,' in h3d volume fmm testing suite'
+      close(33)
+      
 
       stop
       end

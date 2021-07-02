@@ -102,6 +102,7 @@ C$      t2 = omp_get_wtime()
 
       call prin2('time in ccubeints_adap=*',t2-t1,1)
 
+      errmax = 0.0d0
       do i=1,ntarg
         print *, "itarg =", i
         print *, ""
@@ -111,10 +112,14 @@ C$      t2 = omp_get_wtime()
         err3 = abs(pot(4,i)-pot_ex(4,i))
 
         print *, "errors=",err1,err2,err3
+        if(err1.gt.errmax) errmax = err1
+        if(err2.gt.errmax) errmax = err2
+        if(err3.gt.errmax) errmax = err3
         print *, ""
         print *, ""
       enddo
-
+      i1 = 0
+      if(errmax.lt.eps) i1 = 1
 
       print *, ""
       print *, ""
@@ -129,6 +134,7 @@ C$      t2 = omp_get_wtime()
      1   xyzsplit,ntarg,xyztarg,
      1   ncubemax,h3d_vslp,dpars,zk,ipars,nqorder,pot)
 
+      errmax = 0.0d0
       do i=1,ntarg
         print *, "itarg =", i
         print *, ""
@@ -138,9 +144,27 @@ C$      t2 = omp_get_wtime()
         err3 = abs(pot(4,i)-pot_ex(4,i))
 
         print *, "errors=",err1,err2,err3
+        if(err1.gt.errmax) errmax = err1
+        if(err2.gt.errmax) errmax = err2
+        if(err3.gt.errmax) errmax = err3
         print *, ""
         print *, ""
       enddo
+      i2 = 0
+      if(errmax.lt.eps) i2 = 1
+
+      nsuccess = i1+i2
+      ntests = 2
+
+
+
+      open(unit=33,file='../../print_testres.txt')
+      write(33,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess,
+     1  ' out of ',ntests,' in cubeintrouts testing suite'
+      write(*,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess,
+     1  ' out of ',ntests,' in cubeintrouts testing suite'
+      close(33)
+
 
       
 

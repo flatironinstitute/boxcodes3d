@@ -1,4 +1,4 @@
-EXEC = int2-fpolya
+EXEC = int2-qr
 #HOST = gcc
 HOST = gcc-openmp
 #HOST = intel

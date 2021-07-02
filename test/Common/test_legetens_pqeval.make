@@ -1,4 +1,4 @@
-EXEC = int2-legetenspq
+EXEC = int2-legepq
 #HOST = gcc
 HOST = gcc-openmp
 #HOST = intel

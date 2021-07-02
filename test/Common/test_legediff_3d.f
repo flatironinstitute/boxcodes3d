@@ -12,6 +12,13 @@
       ttype = 't'
       npt = (ndeg+1)**3
 
+      tol = 1.0d-4
+      i1 = 0
+      i2 = 0
+      i3 = 0
+      i4 = 0
+      ntests = 4
+
 
       call legetens_npol_3d(ndeg,ttype,npol3)
       allocate(x(3,npt),w(npt),v(npt,npol3),u(npol3,npt))
@@ -49,6 +56,7 @@
       call prin2('ftest=*',ftest,1)
       call prin2('fex=*',fex,1)
       call prin2('error =*', abs(ftest-fex),1)
+      if(abs(ftest-fex).lt.tol) i1 = 1
 c
 c   nwo test derivative
 c
@@ -67,6 +75,7 @@ c
       call prin2('ftest=*',ftest,1)
       call prin2('fex=*',fex,1)
       call prin2('error dx=*', abs(ftest-fex),1)
+      if(abs(ftest-fex).lt.tol) i2 = 1
 c
 c
 c
@@ -82,6 +91,7 @@ c
       call prin2('ftest=*',ftest,1)
       call prin2('fex=*',fex,1)
       call prin2('error dy=*', abs(ftest-fex),1)
+      if(abs(ftest-fex).lt.tol) i3 = 1
 c
 c
 c
@@ -98,7 +108,16 @@ c
       call prin2('ftest=*',ftest,1)
       call prin2('fex=*',fex,1)
       call prin2('error dz=*', abs(ftest-fex),1)
+      if(abs(ftest-fex).lt.tol) i4 = 1
 
+      nsuccess = i1 + i2 + i3 + i4
+
+      open(unit=33,file='../../print_testres.txt',access='append')
+      write(33,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess,
+     1  ' out of ',ntests,' in legediff testing suite'
+      write(*,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess,
+     1  ' out of ',ntests,' in legediff testing suite'
+      close(33)
       
 
 

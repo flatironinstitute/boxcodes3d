@@ -1,4 +1,4 @@
-EXEC = int2-quadintrouts
+EXEC = int2-quad
 #HOST = gcc
 HOST = gcc-openmp
 #HOST = intel

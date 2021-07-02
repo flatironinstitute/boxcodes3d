@@ -91,7 +91,7 @@ OBJECTS = test_helm_volfmm3d.o \
 
 all: $(OBJECTS) 
 	$(FC) $(FFLAGS)  -o $(EXEC) $(OBJECTS) $(FEND) 
-	./$(EXEC) 1 3
+	./$(EXEC) 
 
 
 # implicit rules for objects (note -o ensures writes to correct dir)

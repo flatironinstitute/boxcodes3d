@@ -34,6 +34,12 @@
       call prini(6,13)
       done = 1.0d0
 
+      tol = 1.0d-13
+      ntests = 2
+      i1 = 0
+      i2 = 0
+
+
       ndeg = 7
       n = ndeg+1
       type = 't'
@@ -111,7 +117,19 @@
       errz = sqrt(errz/rz)
       call prin2('error in coefs=*',erra,1)
       call prin2('error in z coefs=*',errz,1)
+       
+      if(erra.lt.tol) i1 = 1
+      if(errz.lt.tol) i2 = 1 
 
+
+      nsuccess = i1 + i2
+
+      open(unit=33,file='../../print_testres.txt',access='append')
+      write(33,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess, &
+       ' out of ',ntests,' in qr testing suite'
+      write(*,'(a,i1,a,i1,a)') 'Successfully completed ',nsuccess, &
+       ' out of ',ntests,' in qr testing suite'
+      close(33)
 
 
       
