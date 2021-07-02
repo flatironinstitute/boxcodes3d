@@ -1,4 +1,4 @@
-EXEC = int2-ls-solver
+EXEC = int2-tabref
 #HOST = gcc
 HOST = gcc-openmp
 #HOST = intel
@@ -71,7 +71,7 @@ HELM = ../../src/Helmholtz
 default: all
 
 
-OBJECTS = test_ls_solver.o \
+OBJECTS = example_helm_volfmm3d.o \
     $(COM)/legetens.o \
     $(COM)/fakepolya3d.o \
     $(COM)/hkrand.o \
@@ -87,9 +87,7 @@ OBJECTS = test_ls_solver.o \
     $(HELM)/h3dvol.o \
     $(HELM)/helm_volfmm3d.o \
     $(HELM)/helm_volfmm3d_wrap.o \
-    $(HELM)/ls_solver.o \
     $(COM)/loadsyms3d.o \
-    $(COM)/rotmat_gmres.o \
     $(COM)/zerrf.o \
 
 all: $(OBJECTS) 

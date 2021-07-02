@@ -872,7 +872,6 @@ C$    time1=omp_get_wtime()
 C$    time2=omp_get_wtime()
       print *, "coefs interp mat time: ", time2-time1
 
-ccccccc    init value for computing list3 interaction
       call h3dsplitboxp_vol(norder,npbox,iboxsrcind,iboxfl,
      1     iboxsubcenters,iboxsrc)
 
@@ -884,8 +883,6 @@ c
       if(ifprint.ge.1) 
      $   call prinf("=== STEP 1 (coefs -> mp) ====*",i,0)
 
-cc      call prinf('ltree=*',ltree,1)
-cc      call prinf('iptr=*',iptr,8)
 
       allocate(ilevrel(0:nlevels))
       ilevrel(0) = 0
@@ -917,11 +914,10 @@ cc      call prinf('iptr=*',iptr,8)
 
       call cpu_time(time2)
 C$       time2 = omp_get_wtime()
-
-
       timeinfo(1) = time2-time1
 
-
+      call cpu_time(time1)
+C$      time1 = omp_get_wtime()     
       do ilev=nlevels-1,0,-1
          nquad2 = nterms(ilev)*2.5
          nquad2 = max(6,nquad2)
@@ -940,7 +936,7 @@ C$       time2 = omp_get_wtime()
 
 
 C$OMP PARALLEL DO DEFAULT(SHARED)
-C$OMP$PRIVATE(ibox,i,jbox,nchild)
+C$OMP$PRIVATE(ibox,i,jbox,nchild) SCHEDULE(DYNAMIC)
          do ibox = itree(2*ilev+1),itree(2*ilev+2)
             nchild = itree(iptr(4)+ibox-1)
             if(nchild.gt.0) then
@@ -956,9 +952,6 @@ C$OMP$PRIVATE(ibox,i,jbox,nchild)
          enddo
 C$OMP END PARALLEL DO          
       enddo
-
-
-
       call cpu_time(time2)
 C$    time2=omp_get_wtime()
       timeinfo(2)=time2-time1
@@ -981,9 +974,7 @@ c
       
          zk2 = zk*boxsize(ilev)
          if(real(zk2).le.16*pi.and.imag(zk2).le.12*pi) then
-cc         if(1.eq.0) then
             ier = 0
-
 c
 c             get new pw quadrature
 c
@@ -1085,15 +1076,12 @@ c         since it is taken care in the scaling of the legendre
 c         functions
 c
           
-cc           r1 = rscales(ilev)
            r1 = 1.0d0
            rsc(0) = 1.0d0
            do i=1,nterms(ilev)
              rsc(i) = rsc(i-1)*r1
            enddo
 
-ccccccc    generate ilev-1 list4 type boxes' ghost children boxes' plan
-ccccccc    plan wave expantion
            cntlist4=0
            do ibox=itree(2*(ilev-1)+1),itree(2*(ilev-1)+2)
              if(nlist3(ibox).gt.0) then
@@ -1108,7 +1096,6 @@ ccccccc    plan wave expantion
      2          ncbox,nmax,rdminus,rdplus,rlsc,xshift,yshift,zshift,
      3          fexp,mexpf1,mexpf2,tmp,tmp2,rsc,pgboxwexp,cntlist4,
      4          fcoefs,fimat,mpcoefsmat(impcoefsmat(ilev)))
-ccccccc    end of pgboxwexp construction
 
            call prinf('before starting mp to pw*',i,0)
 
@@ -1192,7 +1179,7 @@ C$OMP$PRIVATE(nn12,n12,nn56,n56,ns34,s34,ns78,s78,ne13,e13,ne57,e57)
 C$OMP$PRIVATE(nw24,w24,nw68,w68,ne1,e1,ne3,e3,ne5,e5,ne7,e7)
 C$OMP$PRIVATE(nw2,w2,nw4,w4,nw6,w6,nw8,w8)
 C$OMP$PRIVATE(jstart,jend,i)
-C$OMP$PRIVATE(iboxlexp,subcenters,subpts,iboxpot)
+C$OMP$PRIVATE(iboxlexp,subcenters,subpts,iboxpot) SCHEDULE(DYNAMIC)
             do ibox = itree(2*ilev-1),itree(2*ilev)
            
                nchild = itree(iptr(4)+ibox-1)
@@ -1333,7 +1320,7 @@ C$OMP END PARALLEL DO
 
             radius = boxsize(ilev)/2*sqrt(3.0d0)
 C$OMP PARALLEL DO DEFAULT(SHARED)
-C$OMP$PRIVATE(ibox,istart,iend,npts,nl2,i,jbox)
+C$OMP$PRIVATE(ibox,istart,iend,npts,nl2,i,jbox) SCHEDULE(DYNAMIC)
             do ibox = itree(2*ilev+1),itree(2*ilev+2)
 
                nl2 = nlist2(ibox) 
@@ -1605,10 +1592,6 @@ cc               call prin2('vals=*',vals,2*npbox*ntype)
         endif
       enddo
 
-      call cpu_time(time2)
-C$      time2 = omp_get_wtime()      
-
-      timeinfo(6) = time2-time1
 
 
 cc      call prin2('pot=*',pot,2*npbox*nboxes)
@@ -1641,6 +1624,10 @@ c
      1    2,umat,ncbox,rb,potcoefs(1,ibox),2)
       enddo
       
+      call cpu_time(time2)
+C$      time2 = omp_get_wtime()      
+
+      timeinfo(6) = time2-time1
       call prin2('fmm timeinfo=*',timeinfo,6)
 
 

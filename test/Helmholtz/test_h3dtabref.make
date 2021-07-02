@@ -88,7 +88,7 @@ OBJECTS = test_h3dtabref.o \
 
 all: $(OBJECTS) 
 	$(FC) $(FFLAGS)  -o $(EXEC) $(OBJECTS) $(FEND) 
-	./$(EXEC) 1 3
+	./$(EXEC) 1 11
 
 
 # implicit rules for objects (note -o ensures writes to correct dir)
