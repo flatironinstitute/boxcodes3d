@@ -134,9 +134,9 @@ c
       if(irep.eq.1) then
       call cpu_time(t1) 
 C$     t1 = omp_get_wtime()      
-        call helmholtz_volume_fmm(eps,zk,nboxes,nlevels,ltree,itree,
+        call hvfmm_v_v_p(eps,zk,nboxes,nlevels,ltree,itree,
      1    iptr,norder,npols,ttype,soln,centers,boxsize,npbox,
-     2    pot,potcoefs,timeinfo,tprecomp)
+     2    pot)
       call cpu_time(t2) 
 C$     t2 = omp_get_wtime()      
       call prin2('time taken in fmm=*',t2-t1,1)

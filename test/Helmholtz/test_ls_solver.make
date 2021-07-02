@@ -86,6 +86,7 @@ OBJECTS = test_ls_solver.o \
     $(HELM)/helm_vol_kernels.o \
     $(HELM)/h3dvol.o \
     $(HELM)/helm_volfmm3d.o \
+    $(HELM)/helm_volfmm3d_wrap.o \
     $(HELM)/ls_solver.o \
     $(COM)/loadsyms3d.o \
     $(COM)/rotmat_gmres.o \

@@ -1,5 +1,5 @@
       subroutine helmholtz_volume_fmm(eps,zk,nboxes,nlevels,ltree,
-     1   itree,iptr,norder,ncbox,ttype,fvals,centers,boxsize,npbox,
+     1   itree,iptr,norder,ncbox,ttype,fcoefs,centers,boxsize,npbox,
      2   pot,potcoefs,timeinfo,tprecomp)
 
 c
@@ -36,8 +36,8 @@ c           number of coefficients of expansions of functions
 c           in each of the boxes
 c         ttype - character *1
 c            type of coefs provided, total order ('t') or full order('f')
-c         fvals - double complex (npbox,nboxes)
-c           function tabulated on a grid
+c         fcoefs - double complex (ncbox,nboxes)
+c           legendre expansion of function tabulated on a grid
 c         centers - double precision (3,nboxes)
 c           xyz coordintes of boxes in the tree structure
 c         boxsize - double precision (0:nlevels)
@@ -61,7 +61,7 @@ c
       integer nboxes,nlevels,ltree
       integer itree(ltree),iptr(8),norder,ncbox,npbox
       character *1 ttype
-      complex *16 fvals(npbox,nboxes)
+      complex *16 fcoefs(ncbox,nboxes)
       complex *16 pot(npbox,nboxes)
       complex *16 potcoefs(ncbox,nboxes)
       real *8 centers(3,nboxes)
@@ -90,7 +90,7 @@ c
      2   itamat,ltamat,itab,ltab,ttype,mpcoefsmat,tamat,tab,tprecomp)
 
       call helmholtz_volume_fmm_wprecomp(eps,zk,nboxes,nlevels,
-     1   ltree,itree,iptr,norder,ncbox,ttype,fvals,centers,boxsize,
+     1   ltree,itree,iptr,norder,ncbox,ttype,fcoefs,centers,boxsize,
      2   mpcoefsmat,impcoefsmat,lmpcoefsmat,tamat,itamat,
      3   ltamat,tab,itab,ltab,npbox,pot,potcoefs,timeinfo)
       
@@ -495,10 +495,12 @@ c
      1       nup,iflg,pmat_qr,ncbox,pmat_jpvt,pmat_tau,tt1,tt2,tt3)
         endif
       enddo
+
       call cpu_time(t2)
 C$      t2 = omp_get_wtime()      
 
       tprecomp(3) = t2-t1
+      print *, "here2"
 
       return
       end
@@ -511,7 +513,7 @@ c
 
 
       subroutine helmholtz_volume_fmm_wprecomp(eps,zk,nboxes,nlevels,
-     1   ltree,itree,iptr,norder,ncbox,ttype,fvals,centers,boxsize,
+     1   ltree,itree,iptr,norder,ncbox,ttype,fcoefs,centers,boxsize,
      2   mpcoefsmat,impcoefsmat,lmpcoefsmat,tamat,itamat,
      3   ltamat,tab,itab,ltab,npbox,pot,potcoefs,timeinfo)
 
@@ -549,8 +551,8 @@ c           number of coefficients of expansions of functions
 c           in each of the boxes
 c         ttype - character *1
 c            type of coefs provided, total order ('t') or full order('f')
-c         fvals - double complex (npbox,nboxes)
-c            function values tabulated on the tree
+c         fcoefs - double complex (ncbox,nboxes)
+c            function coeffs tabulated on the tree
 c         centers - double precision (3,nboxes)
 c           xyz coordintes of boxes in the tree structure
 c         boxsize - double precision (0:nlevels)
@@ -588,7 +590,7 @@ c
       complex *16 zk,zk2
       integer nboxes,nlevels,ltree
       integer itree(ltree),iptr(8),ncbox,npbox,ncc
-      complex *16 fvals(npbox,nboxes)
+      complex *16 fcoefs(ncbox,nboxes)
       complex *16 pot(npbox,nboxes),potcoefs(ncbox,nboxes)
       double precision boxsize(0:nlevels),centers(3,nboxes)
 
@@ -614,7 +616,6 @@ c
       double precision, allocatable :: xnodes(:),wts(:)
 
       real *8, allocatable :: xref(:,:),umat(:,:),vmat(:,:),wts0(:)
-      complex *16, allocatable :: fcoefs(:,:)
 c
 cc      pw stuff
 c
@@ -725,20 +726,13 @@ c
 c
 c       compute coefs
 c
-c
-      allocate(fcoefs(ncbox,nboxes),xref(3,npbox),umat(ncbox,npbox),
+      
+      allocate(xref(3,npbox),umat(ncbox,npbox),
      1   vmat(npbox,ncbox),wts0(npbox))
      
       itype = 2 
       call legetens_exps_3d(itype,norder,ttype,xref,umat,ncbox,vmat,
      1  npbox,wts0)
-      
-      ra = 1.0d0
-      rb = 0.0d0
-      do ibox=1,nboxes
-        call dgemm('n','t',2,ncbox,npbox,ra,fvals(1,ibox),
-     1    2,umat,ncbox,rb,fcoefs(1,ibox),2)
-      enddo
       
 
 
@@ -797,9 +791,6 @@ c       the levels
 c
 
       allocate(rscales(0:nlevels),nterms(0:nlevels))
-cc      call prinf('nboxes=*',nboxes,1)
-cc      call prinf('nlevels=*',nlevels,1)
-cc      call prin2('zk=*',zk,2)
 
 
  

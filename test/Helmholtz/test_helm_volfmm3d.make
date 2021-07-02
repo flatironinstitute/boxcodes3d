@@ -86,6 +86,7 @@ OBJECTS = test_helm_volfmm3d.o \
     $(HELM)/helm_vol_kernels.o \
     $(HELM)/h3dvol.o \
     $(HELM)/helm_volfmm3d.o \
+    $(HELM)/helm_volfmm3d_wrap.o \
     $(COM)/loadsyms3d.o \
     $(COM)/zerrf.o \
 

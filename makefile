@@ -84,7 +84,7 @@ HELM = src/Helmholtz
 HOBJS = $(HELM)/h3danti.o $(HELM)/h3dtab.o \
 	$(HELM)/h3dtab_brute.o $(HELM)/h3dvol.o \
 	$(HELM)/helm_vol_kernels.o $(HELM)/helm_volfmm3d.o \
-	$(HELM)/ls_solver.o 
+	$(HELM)/ls_solver.o $(HELM)/helm_volfmm3d_wrap.o 
 
 OBJS = $(COMOBJS) $(HOBJS) 
 
