@@ -86,7 +86,7 @@ c
 c
 c
 c
-      ifgen = 1
+      ifgen = 0
       izk = 1
       eps_exact = 1.0d-11
       ifwrite = 1
@@ -114,7 +114,7 @@ c
 
       
 
-      if(igen.ne.1) then
+      if(ifgen.ne.1) then
 
         do izk=1,4
 

@@ -97,7 +97,7 @@ c
 
 
       eps = tol 
-      ncmax = 60000
+      ncmax = 100000
       nqorder = 11
 
       ntt = 1
