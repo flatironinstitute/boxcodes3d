@@ -49,6 +49,7 @@
       integer iptr(9)
       integer, allocatable :: itree(:)
       real *8, allocatable :: fvals(:,:,:),centers(:,:),boxsize(:)
+      real *8, allocatable :: fcoefs(:,:,:)
       real *8, allocatable :: umat(:,:),vmat(:,:),xref(:,:),wts(:)
       real *8 xyztmp(3),rintl(0:200)
       real *8 timeinfo(6),tprecomp(3)
@@ -177,19 +178,32 @@ c
 
 
       allocate(pot(npbox,nboxes),potcoefs(npols,nboxes))
+      allocate(fcoefs(2,npols,nboxes))
+      allocate(xref(3,npbox),umat(npols,npbox),vmat(npbox,npols),
+     1    wts(npbox))
+      type = 'T'
+      itype = 2
+      call legetens_exps_3d(itype,norder,'t',xref,umat,npols,vmat,
+     1   npbox,wts)
 
+      ra = 1.0d0
+      rb = 0.0d0
+      do ibox=1,nboxes
+        call dgemm('n','t',2,npols,npbox,ra,fvals(1,1,ibox),
+     1    2,umat,npols,rb,fcoefs(1,1,ibox),2)
+      enddo
+      
       do i=1,nboxes
         do j=1,npbox
           pot(j,i) = 0
         enddo
       enddo
 
-      type = 'T'
       
       call cpu_time(t1) 
 C$     t1 = omp_get_wtime()      
       call helmholtz_volume_fmm(eps,zk,nboxes,nlevels,ltree,itree,
-     1   iptr,norder,npols,type,fvals,centers,boxsize,npbox,
+     1   iptr,norder,npols,type,fcoefs,centers,boxsize,npbox,
      2   pot,potcoefs,timeinfo,tprecomp)
       call cpu_time(t2) 
 C$     t2 = omp_get_wtime()      
@@ -210,10 +224,6 @@ C$     t2 = omp_get_wtime()
       call prinf('nlfbox=*',nlfbox,1)
       call prin2('speed in pps=*',(npbox*nlfbox+0.0d0)/(tvol),1)
 
-      allocate(xref(3,npbox),umat(npols,npbox),vmat(npbox,npols),
-     1    wts(npbox))
-      itype = 1
-      call legetens_exps_3d(itype,norder,'t',xref,umat,1,vmat,1,wts)
       nsrc = npbox*nlfbox
       nnn = nsrc
 

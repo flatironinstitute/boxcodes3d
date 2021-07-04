@@ -246,10 +246,6 @@ c     on face
          
       enddo         
       
-      call cpu_time(t2)
-C$      t2 = omp_get_wtime()      
-      tlpspr = t2-t1
-
 c
 c  tabtemp2 now stores the volume potential at all the polya points. Convert 
 c  the volume potential to coefficients now
@@ -264,6 +260,10 @@ c
         call zqrsolv(npt,npol3,pmat_qr,pmat_jpvt,pmat_tau,npol3,
      1    tabtemp2(istart:iend,1:npol3),tab(istart2:iend2,1:npol3))
       enddo
+
+      call cpu_time(t2)
+C$      t2 = omp_get_wtime()      
+      tlpspr = t2-t1
 
       return
       end
@@ -434,7 +434,7 @@ cc      call prinf("Starting adap quad for near*",i,0)
         nttpcore = ceiling((ntarg_n+0.0d0)/nbatches)
         ntt = 1
 
-        t1 = second()
+        call cpu_time(t1)
 C$       t1 = omp_get_wtime()  
 C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,istart,iend,ntt)
 c$OMP& SCHEDULE(DYNAMIC)      
@@ -452,7 +452,7 @@ c$OMP& SCHEDULE(DYNAMIC)
      2       nqorder,iflg,dlp_near(1,istart))
         enddo
 C$OMP END PARALLEL DO      
-        t2 = second()
+        call cpu_time(t2)
 C$       t2 = omp_get_wtime()      
 
 cc      call prin2('time taken in evaluating near=*',t2-t1,1)
@@ -497,10 +497,10 @@ C$OMP END PARALLEL DO
       if(iflg.eq.2) then
         ntt = 1
 
-        t1 = second()
+        call cpu_time(t1)
 C$       t1 = omp_get_wtime()  
 C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
-c$OMP& SCHEDULE(DYNAMIC)      
+c$OMP$SCHEDULE(DYNAMIC)      
         do i=1,ntarg
 
           call cquadints_adap(eps,intype,norder_p,type,npols,ntt,
@@ -512,7 +512,7 @@ c$OMP& SCHEDULE(DYNAMIC)
      2     nqorder,iflg,dlp_pots(1,i))
         enddo
 C$OMP END PARALLEL DO      
-        t2 = second()
+        call cpu_time(t2)
 C$       t2 = omp_get_wtime()      
       endif
 
@@ -722,8 +722,7 @@ cc      call prinf("Starting adap quad for near*",i,0)
         nbatches = 48
         nttpcore = ceiling((ntarg_n+0.0d0)/nbatches)
         ntt = 1
-
-        t1 = second()
+        call cpu_time(t1)
 C$       t1 = omp_get_wtime()  
 C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,istart,iend,ntt)
 c$OMP& SCHEDULE(DYNAMIC)      
@@ -765,8 +764,8 @@ c$OMP& SCHEDULE(DYNAMIC)
      2       ipars,nqorder,iflg,dlp_gradz_near(1,istart))
 
         enddo
-C$OMP END PARALLEL DO      
-        t2 = second()
+C$OMP END PARALLEL DO     
+        call cpu_time(t2)
 C$       t2 = omp_get_wtime()      
 
 cc      call prin2('time taken in evaluating near=*',t2-t1,1)
@@ -841,7 +840,7 @@ C$OMP END PARALLEL DO
       if(iflg.eq.2) then
         ntt = 1
 
-        t1 = second()
+        call cpu_time(t1)
 C$       t1 = omp_get_wtime()  
 C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
 c$OMP& SCHEDULE(DYNAMIC)      
@@ -880,8 +879,8 @@ c$OMP& SCHEDULE(DYNAMIC)
      2     nqorder,iflg,dlp_gradz(1,i))
 
         enddo
-C$OMP END PARALLEL DO      
-        t2 = second()
+C$OMP END PARALLEL DO     
+        call cpu_time(t2)
 C$       t2 = omp_get_wtime()      
       endif
 

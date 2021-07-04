@@ -1,5 +1,5 @@
       subroutine helmholtz_volume_fmm(eps,zk,nboxes,nlevels,ltree,
-     1   itree,iptr,norder,ncbox,ttype,fvals,centers,boxsize,npbox,
+     1   itree,iptr,norder,ncbox,ttype,fcoefs,centers,boxsize,npbox,
      2   pot,potcoefs,timeinfo,tprecomp)
 
 c
@@ -36,8 +36,8 @@ c           number of coefficients of expansions of functions
 c           in each of the boxes
 c         ttype - character *1
 c            type of coefs provided, total order ('t') or full order('f')
-c         fvals - double complex (npbox,nboxes)
-c           function tabulated on a grid
+c         fcoefs - double complex (ncbox,nboxes)
+c           legendre expansion of function tabulated on a grid
 c         centers - double precision (3,nboxes)
 c           xyz coordintes of boxes in the tree structure
 c         boxsize - double precision (0:nlevels)
@@ -61,7 +61,7 @@ c
       integer nboxes,nlevels,ltree
       integer itree(ltree),iptr(8),norder,ncbox,npbox
       character *1 ttype
-      complex *16 fvals(npbox,nboxes)
+      complex *16 fcoefs(ncbox,nboxes)
       complex *16 pot(npbox,nboxes)
       complex *16 potcoefs(ncbox,nboxes)
       real *8 centers(3,nboxes)
@@ -90,7 +90,7 @@ c
      2   itamat,ltamat,itab,ltab,ttype,mpcoefsmat,tamat,tab,tprecomp)
 
       call helmholtz_volume_fmm_wprecomp(eps,zk,nboxes,nlevels,
-     1   ltree,itree,iptr,norder,ncbox,ttype,fvals,centers,boxsize,
+     1   ltree,itree,iptr,norder,ncbox,ttype,fcoefs,centers,boxsize,
      2   mpcoefsmat,impcoefsmat,lmpcoefsmat,tamat,itamat,
      3   ltamat,tab,itab,ltab,npbox,pot,potcoefs,timeinfo)
       
@@ -485,7 +485,7 @@ C$      t1 = omp_get_wtime()
 c
 c  This needs fixing..
 c
-      nup = 8
+      nup = max(ndeg,5)
       iflg = 1
       do ilev=0,nlevels
         nnn = itab(ilev+1)-itab(ilev)
@@ -495,10 +495,12 @@ c
      1       nup,iflg,pmat_qr,ncbox,pmat_jpvt,pmat_tau,tt1,tt2,tt3)
         endif
       enddo
+
       call cpu_time(t2)
 C$      t2 = omp_get_wtime()      
 
       tprecomp(3) = t2-t1
+      print *, "here2"
 
       return
       end
@@ -511,7 +513,7 @@ c
 
 
       subroutine helmholtz_volume_fmm_wprecomp(eps,zk,nboxes,nlevels,
-     1   ltree,itree,iptr,norder,ncbox,ttype,fvals,centers,boxsize,
+     1   ltree,itree,iptr,norder,ncbox,ttype,fcoefs,centers,boxsize,
      2   mpcoefsmat,impcoefsmat,lmpcoefsmat,tamat,itamat,
      3   ltamat,tab,itab,ltab,npbox,pot,potcoefs,timeinfo)
 
@@ -549,8 +551,8 @@ c           number of coefficients of expansions of functions
 c           in each of the boxes
 c         ttype - character *1
 c            type of coefs provided, total order ('t') or full order('f')
-c         fvals - double complex (npbox,nboxes)
-c            function values tabulated on the tree
+c         fcoefs - double complex (ncbox,nboxes)
+c            function coeffs tabulated on the tree
 c         centers - double precision (3,nboxes)
 c           xyz coordintes of boxes in the tree structure
 c         boxsize - double precision (0:nlevels)
@@ -588,7 +590,7 @@ c
       complex *16 zk,zk2
       integer nboxes,nlevels,ltree
       integer itree(ltree),iptr(8),ncbox,npbox,ncc
-      complex *16 fvals(npbox,nboxes)
+      complex *16 fcoefs(ncbox,nboxes)
       complex *16 pot(npbox,nboxes),potcoefs(ncbox,nboxes)
       double precision boxsize(0:nlevels),centers(3,nboxes)
 
@@ -614,7 +616,6 @@ c
       double precision, allocatable :: xnodes(:),wts(:)
 
       real *8, allocatable :: xref(:,:),umat(:,:),vmat(:,:),wts0(:)
-      complex *16, allocatable :: fcoefs(:,:)
 c
 cc      pw stuff
 c
@@ -725,20 +726,13 @@ c
 c
 c       compute coefs
 c
-c
-      allocate(fcoefs(ncbox,nboxes),xref(3,npbox),umat(ncbox,npbox),
+      
+      allocate(xref(3,npbox),umat(ncbox,npbox),
      1   vmat(npbox,ncbox),wts0(npbox))
      
       itype = 2 
       call legetens_exps_3d(itype,norder,ttype,xref,umat,ncbox,vmat,
      1  npbox,wts0)
-      
-      ra = 1.0d0
-      rb = 0.0d0
-      do ibox=1,nboxes
-        call dgemm('n','t',2,ncbox,npbox,ra,fvals(1,ibox),
-     1    2,umat,ncbox,rb,fcoefs(1,ibox),2)
-      enddo
       
 
 
@@ -797,9 +791,6 @@ c       the levels
 c
 
       allocate(rscales(0:nlevels),nterms(0:nlevels))
-cc      call prinf('nboxes=*',nboxes,1)
-cc      call prinf('nlevels=*',nlevels,1)
-cc      call prin2('zk=*',zk,2)
 
 
  
@@ -881,7 +872,6 @@ C$    time1=omp_get_wtime()
 C$    time2=omp_get_wtime()
       print *, "coefs interp mat time: ", time2-time1
 
-ccccccc    init value for computing list3 interaction
       call h3dsplitboxp_vol(norder,npbox,iboxsrcind,iboxfl,
      1     iboxsubcenters,iboxsrc)
 
@@ -893,8 +883,6 @@ c
       if(ifprint.ge.1) 
      $   call prinf("=== STEP 1 (coefs -> mp) ====*",i,0)
 
-cc      call prinf('ltree=*',ltree,1)
-cc      call prinf('iptr=*',iptr,8)
 
       allocate(ilevrel(0:nlevels))
       ilevrel(0) = 0
@@ -926,11 +914,10 @@ cc      call prinf('iptr=*',iptr,8)
 
       call cpu_time(time2)
 C$       time2 = omp_get_wtime()
-
-
       timeinfo(1) = time2-time1
 
-
+      call cpu_time(time1)
+C$      time1 = omp_get_wtime()     
       do ilev=nlevels-1,0,-1
          nquad2 = nterms(ilev)*2.5
          nquad2 = max(6,nquad2)
@@ -949,7 +936,7 @@ C$       time2 = omp_get_wtime()
 
 
 C$OMP PARALLEL DO DEFAULT(SHARED)
-C$OMP$PRIVATE(ibox,i,jbox,nchild)
+C$OMP$PRIVATE(ibox,i,jbox,nchild) SCHEDULE(DYNAMIC)
          do ibox = itree(2*ilev+1),itree(2*ilev+2)
             nchild = itree(iptr(4)+ibox-1)
             if(nchild.gt.0) then
@@ -965,9 +952,6 @@ C$OMP$PRIVATE(ibox,i,jbox,nchild)
          enddo
 C$OMP END PARALLEL DO          
       enddo
-
-
-
       call cpu_time(time2)
 C$    time2=omp_get_wtime()
       timeinfo(2)=time2-time1
@@ -990,9 +974,7 @@ c
       
          zk2 = zk*boxsize(ilev)
          if(real(zk2).le.16*pi.and.imag(zk2).le.12*pi) then
-cc         if(1.eq.0) then
             ier = 0
-
 c
 c             get new pw quadrature
 c
@@ -1094,15 +1076,12 @@ c         since it is taken care in the scaling of the legendre
 c         functions
 c
           
-cc           r1 = rscales(ilev)
            r1 = 1.0d0
            rsc(0) = 1.0d0
            do i=1,nterms(ilev)
              rsc(i) = rsc(i-1)*r1
            enddo
 
-ccccccc    generate ilev-1 list4 type boxes' ghost children boxes' plan
-ccccccc    plan wave expantion
            cntlist4=0
            do ibox=itree(2*(ilev-1)+1),itree(2*(ilev-1)+2)
              if(nlist3(ibox).gt.0) then
@@ -1117,7 +1096,6 @@ ccccccc    plan wave expantion
      2          ncbox,nmax,rdminus,rdplus,rlsc,xshift,yshift,zshift,
      3          fexp,mexpf1,mexpf2,tmp,tmp2,rsc,pgboxwexp,cntlist4,
      4          fcoefs,fimat,mpcoefsmat(impcoefsmat(ilev)))
-ccccccc    end of pgboxwexp construction
 
            call prinf('before starting mp to pw*',i,0)
 
@@ -1201,7 +1179,7 @@ C$OMP$PRIVATE(nn12,n12,nn56,n56,ns34,s34,ns78,s78,ne13,e13,ne57,e57)
 C$OMP$PRIVATE(nw24,w24,nw68,w68,ne1,e1,ne3,e3,ne5,e5,ne7,e7)
 C$OMP$PRIVATE(nw2,w2,nw4,w4,nw6,w6,nw8,w8)
 C$OMP$PRIVATE(jstart,jend,i)
-C$OMP$PRIVATE(iboxlexp,subcenters,subpts,iboxpot)
+C$OMP$PRIVATE(iboxlexp,subcenters,subpts,iboxpot) SCHEDULE(DYNAMIC)
             do ibox = itree(2*ilev-1),itree(2*ilev)
            
                nchild = itree(iptr(4)+ibox-1)
@@ -1342,7 +1320,7 @@ C$OMP END PARALLEL DO
 
             radius = boxsize(ilev)/2*sqrt(3.0d0)
 C$OMP PARALLEL DO DEFAULT(SHARED)
-C$OMP$PRIVATE(ibox,istart,iend,npts,nl2,i,jbox)
+C$OMP$PRIVATE(ibox,istart,iend,npts,nl2,i,jbox) SCHEDULE(DYNAMIC)
             do ibox = itree(2*ilev+1),itree(2*ilev+2)
 
                nl2 = nlist2(ibox) 
@@ -1614,10 +1592,6 @@ cc               call prin2('vals=*',vals,2*npbox*ntype)
         endif
       enddo
 
-      call cpu_time(time2)
-C$      time2 = omp_get_wtime()      
-
-      timeinfo(6) = time2-time1
 
 
 cc      call prin2('pot=*',pot,2*npbox*nboxes)
@@ -1650,6 +1624,10 @@ c
      1    2,umat,ncbox,rb,potcoefs(1,ibox),2)
       enddo
       
+      call cpu_time(time2)
+C$      time2 = omp_get_wtime()      
+
+      timeinfo(6) = time2-time1
       call prin2('fmm timeinfo=*',timeinfo,6)
 
 

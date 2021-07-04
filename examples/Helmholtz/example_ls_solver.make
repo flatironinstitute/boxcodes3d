@@ -1,4 +1,4 @@
-EXEC = int2-volvspt
+EXEC = int2-ls-solver
 #HOST = gcc
 HOST = gcc-openmp
 #HOST = intel
@@ -36,8 +36,6 @@ ifneq ($(OS),Windows_NT)
     endif
 endif
 
-LBLAS = -lopenblas
-
 
 ifeq ($(HOST),gcc)
     FC=gfortran 
@@ -73,7 +71,7 @@ HELM = ../../src/Helmholtz
 default: all
 
 
-OBJECTS = test_vol_vs_pt_fmm_timing.o \
+OBJECTS = example_ls_solver.o \
     $(COM)/legetens.o \
     $(COM)/fakepolya3d.o \
     $(COM)/hkrand.o \
@@ -88,12 +86,15 @@ OBJECTS = test_vol_vs_pt_fmm_timing.o \
     $(HELM)/helm_vol_kernels.o \
     $(HELM)/h3dvol.o \
     $(HELM)/helm_volfmm3d.o \
+    $(HELM)/helm_volfmm3d_wrap.o \
+    $(HELM)/ls_solver.o \
     $(COM)/loadsyms3d.o \
+    $(COM)/rotmat_gmres.o \
     $(COM)/zerrf.o \
 
 all: $(OBJECTS) 
 	$(FC) $(FFLAGS)  -o $(EXEC) $(OBJECTS) $(FEND) 
-	./$(EXEC) 2 7 1
+	./$(EXEC) 
 
 
 # implicit rules for objects (note -o ensures writes to correct dir)

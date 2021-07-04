@@ -159,7 +159,7 @@ c$omp parallel do private(i,iin,jin,kin,iout,jout,kout,j)
          stabup(i) = sqrt(stabup(i)/npol)
          stabdown(i) = sqrt(stabdown(i)/npol)         
       enddo
-c     $end parallel do
+c$end parallel do
 
 
 c     choose best for each input poly and get max error

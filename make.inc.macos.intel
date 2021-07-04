@@ -1,0 +1,28 @@
+# makefile overrides
+# OS:       macOS
+# Compiler: ifort 2020 ...
+# OpenMP:   enabled
+# BLAS:     MKL
+#
+
+CC = icc
+CXX = icpc
+FC = ifort
+FFLAGS= -fPIC -O2 -march=native -funroll-loops
+
+ifeq ($(PREFIX),)
+    FMMBIE_INSTALL_DIR=/usr/local/lib
+endif
+
+ifeq ($(PREFIX_FMM),)
+    FMM_INSTALL_DIR=/usr/local/lib
+endif
+
+# OpenMP with gcc on OSX needs the following
+OMPFLAGS = -qopenmp
+OMPLIBS =
+
+LBLAS = -mkl
+
+
+

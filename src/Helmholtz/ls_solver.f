@@ -85,7 +85,7 @@ c
       real *8 tprecomp(3)
       integer irep
       complex *16 sigma(npbox,nboxes)
-      complex *16, allocatable :: tmp_coefs(:,:)
+      complex *16, allocatable :: tmp_coefs(:,:),tmp_coefs2(:,:)
       complex *16 temp,ztmp
 c
 c       fmm precomp variables
@@ -104,6 +104,8 @@ c
       complex *16, allocatable :: cs(:),sn(:)
       complex *16, allocatable :: svec(:),yvec(:),wtmp(:,:)
       complex *16, allocatable :: wtmp2(:,:)
+      real *8, allocatable :: xref(:,:),umat(:,:),vmat0(:,:),wts0(:)
+
 
 
       done =  1
@@ -115,6 +117,14 @@ c
       allocate(wtmp(npbox,nboxes),svec(numit+1),yvec(numit+1))
       allocate(wtmp2(npbox,nboxes))
       allocate(tmp_coefs(ncbox,nboxes))
+      allocate(tmp_coefs2(ncbox,nboxes))
+      allocate(xref(3,npbox),umat(ncbox,npbox),vmat0(npbox,ncbox),
+     1   wts0(npbox))
+     
+      itype = 2 
+      call legetens_exps_3d(itype,norder,ttype,xref,umat,ncbox,vmat0,
+     1  npbox,wts0)
+      
 
 c
 c       get precomputation arrays for current tree structure
@@ -142,10 +152,17 @@ c
         enddo
       endif
       if(irep.eq.2) then
+        ra = 1.0d0
+        rb = 0.0d0
+        do ibox=1,nboxes
+         call dgemm('n','t',2,ncbox,npbox,ra,rhs(1,ibox),
+     1      2,umat,ncbox,rb,tmp_coefs(1,ibox),2)
+        enddo
+      
         call helmholtz_volume_fmm_wprecomp(eps,zk,nboxes,nlevels,
-     1  ltree,itree,iptr,norder,ncbox,ttype,rhs,centers,
+     1  ltree,itree,iptr,norder,ncbox,ttype,tmp_coefs,centers,
      2  boxsize,mpcoefsmat,impcoefsmat,lmpcoefsmat,tamat,itamat,
-     3  ltamat,tab,itab,ltab,npbox,rhsuse,tmp_coefs,timeinfo)
+     3  ltamat,tab,itab,ltab,npbox,rhsuse,tmp_coefs2,timeinfo)
        endif
 
 c
@@ -166,7 +183,7 @@ c
 c
 c      compute norm of right hand side and initialize v
 c 
-      rb = 0
+      rbval = 0
 
       do i=1,numit
         cs(i) = 0
@@ -176,19 +193,19 @@ c
       do ibox=1,nboxes
         if(itree(iptr(4)+ibox-1).eq.0) then
           do j=1,npbox
-            rb = rb + abs(rhsuse(j,ibox))**2
+            rbval = rbval + abs(rhsuse(j,ibox))**2
           enddo
         endif
       enddo
-      rb = sqrt(rb)
+      rbval = sqrt(rbval)
 
       do ibox=1,nboxes
         do j=1,npbox
-          vmat(j,ibox,1) = rhsuse(j,ibox)/rb
+          vmat(j,ibox,1) = rhsuse(j,ibox)/rbval
         enddo
       enddo
 
-      svec(1) = rb
+      svec(1) = rbval
 
       do it=1,numit
         it1 = it + 1
@@ -224,10 +241,17 @@ c
         enddo
 
 
+        ra = 1.0d0
+        rb = 0.0d0
+        do ibox=1,nboxes
+         call dgemm('n','t',2,ncbox,npbox,ra,wtmp2(1,ibox),
+     1      2,umat,ncbox,rb,tmp_coefs(1,ibox),2)
+        enddo
+      
         call helmholtz_volume_fmm_wprecomp(eps,zk,nboxes,nlevels,
-     1  ltree,itree,iptr,norder,ncbox,ttype,wtmp2,centers,
+     1  ltree,itree,iptr,norder,ncbox,ttype,tmp_coefs,centers,
      2  boxsize,mpcoefsmat,impcoefsmat,lmpcoefsmat,tamat,itamat,
-     3  ltamat,tab,itab,ltab,npbox,wtmp,tmp_coefs,timeinfo)
+     3  ltamat,tab,itab,ltab,npbox,wtmp,tmp_coefs2,timeinfo)
 
 
         if(irep.eq.1) then
@@ -288,13 +312,14 @@ c
         enddo
 
         ztmp = wnrm2
+        print *, "wnrm2=",wrnm2
 
         call zrotmat_gmres(hmat(it,it),ztmp,cs(it),sn(it))
           
         hmat(it,it) = cs(it)*hmat(it,it)+sn(it)*wnrm2
         svec(it1) = -sn(it)*svec(it)
         svec(it) = cs(it)*svec(it)
-        rmyerr = abs(svec(it1))/rb
+        rmyerr = abs(svec(it1))/rbval
         errs(it) = rmyerr
         print *, "iter=",it,errs(it)
 
@@ -364,10 +389,17 @@ c
               enddo
             enddo
           endif
+          ra = 1.0d0
+          rb = 0.0d0
+          do ibox=1,nboxes
+           call dgemm('n','t',2,ncbox,npbox,ra,wtmp2(1,ibox),
+     1       2,umat,ncbox,rb,tmp_coefs(1,ibox),2)
+          enddo
+      
           call helmholtz_volume_fmm_wprecomp(eps,zk,nboxes,nlevels,
-     1     ltree,itree,iptr,norder,ncbox,ttype,wtmp2,centers,
+     1     ltree,itree,iptr,norder,ncbox,ttype,tmp_coefs,centers,
      2     boxsize,mpcoefsmat,impcoefsmat,lmpcoefsmat,tamat,itamat,
-     3     ltamat,tab,itab,ltab,npbox,wtmp,tmp_coefs,timeinfo)
+     3     ltamat,tab,itab,ltab,npbox,wtmp,tmp_coefs2,timeinfo)
        
           if(irep.eq.1) then
             do ibox=1,nboxes
@@ -386,7 +418,7 @@ c
             endif
           enddo
 
-          rres = sqrt(rres)/rb
+          rres = sqrt(rres)/rbval
           niter = it
           return
         endif

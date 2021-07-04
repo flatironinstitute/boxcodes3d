@@ -88,8 +88,6 @@ c       local
       istart2 = 7*npt+1
       call tensrefpts3d_grid(npt,grid,bs,xyzc,xyztarg,
      1  xyztarg(1,istart1),xyztarg(1,istart2))
-
-cc      call prin2('xyztarg=*',xyztarg,3*npt)
       
       allocate(tab_t(npols,ntarg))
 c
@@ -99,7 +97,7 @@ c
 
 
       eps = tol 
-      ncmax = 30000
+      ncmax = 100000
       nqorder = 11
 
       ntt = 1
@@ -109,6 +107,7 @@ C$     t1 = omp_get_wtime()
       
 C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i) SCHEDULE(DYNAMIC)
       do i=1,npt
+        print *, i
         call ccubeints_split8int_adap(eps,norder,'t',npols,
      1        xyztarg(1,i),ntt,xyztarg(1,i),
      1        ncmax,fker,dpars,zpars,ipars,nqorder,tab_t(1,i))
@@ -118,6 +117,7 @@ C$OMP END PARALLEL DO
 C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
 C$OMP$SCHEDULE(DYNAMIC)
       do i=npt+1,ntarg
+        if(mod(i,50).eq.1) print *, i
         call ccubeints_adap(eps,norder,'t',npols,ntt,xyztarg(1,i),
      1        ncmax,fker,dpars,zpars,ipars,nqorder,tab_t(1,i))
       enddo

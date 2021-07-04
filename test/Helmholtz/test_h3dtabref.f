@@ -34,7 +34,7 @@
       i1 = 0
       i2 = 0
 
-      nup = 8
+      nup = max(ndeg,5)
 
       type = 't'
       call legetens_npol_3d(ndeg,type,npol3)
@@ -87,9 +87,9 @@ c
 c
 c
       ifgen = 0
-      izk = 2
+      izk = 1
       eps_exact = 1.0d-11
-      ifwrite = 0
+      ifwrite = 1
       ifread = 1
       if(ifgen.eq.1) then
          if(izk.eq.1) zk = 1.6d0
@@ -108,14 +108,15 @@ c
          write(unit=33) tab_ref
          close(33)
         endif
+        stop
       endif
 
 
       
 
-      if(igen.ne.1) then
+      if(ifgen.ne.1) then
 
-        do izk=2,2
+        do izk=1,4
 
           if(izk.eq.1) zk = 1.6d0
           if(izk.eq.2) zk = 0.16d0
@@ -142,7 +143,6 @@ c
 
             istart2 = (i-1)*npol3+1
             iend2 = i*npol3
-            print *,i,istart,iend,istart2,iend2
             call zqrsolv(npt,npol3,pmat_qr,pmat_jpvt,pmat_tau,npol3,
      1        tab_ref(istart:iend,1:npol3),
      2        tab_ref_coefs(istart2:iend2,1:npol3))
@@ -184,7 +184,6 @@ C$           t1 = omp_get_wtime()
           enddo
           call cpu_time(t2)
 C$           t2 = omp_get_wtime()          
-cc    
 
 
           print *, "done with 3d adap quad"
@@ -215,8 +214,7 @@ cc
           errm_rel2(izk,1) = errmax2
           errm_abs(izk,1) = errmaxa/rmax
           err_print(1) = errmax1
-          err_print(2) = errmax2
-          err_print(3) = errmaxa/rmax
+          err_print(2) = errmaxa/rmax
 
           call prin2(' *',i,0)
           call prin2(' *',i,0)
@@ -259,12 +257,10 @@ cc
           errm_rel2(izk,2) = errmax2
           errm_abs(izk,2) = errmaxa/rmax
           err_print(1) = errmax1
-          err_print(2) = errmax2
-          err_print(3) = errmaxa/rmax
-          call prin2('max error=*',err_print,3)
+          err_print(2) = errmaxa/rmax
+          call prin2('max error=*',err_print,2)
           tt3d(izk) = t2-t1
           call prin2('time taken=*',tt3d(izk),1)
-
  1111     continue          
         enddo
         call prin2(' *',i,0)
@@ -273,12 +269,61 @@ cc
         call prin2(' *',i,0)
         call prin2(' *',i,0)
 
-        call prin2('max errors relative 1=*',errm_rel1(2,1:2),2)
-        call prin2('max errors relative 2=*',errm_rel2(2,1:2),2)
-        call prin2('max errors absolute=*',errm_abs(2,1:2),2)
-        call prin2('time taken 2d=*',tts(:,2,:),6)
-        call prin2('time taken 3d adap=*',tt3d(2),1)
-        stop
+        print *, "relative errors"
+        print *, " "
+        print *, " "
+        do izk=1,4
+          write(*,'(i2,2(2x,e11.5))') izk,errm_rel1(izk,1),
+     1       errm_rel1(izk,2)
+        enddo
+        print *, " "
+        print *, "================= "
+        print *, "absolute errors"
+        print *, " "
+        print *, " "
+        do izk=1,4
+          write(*,'(i2,2(2x,e11.5))') izk,errm_abs(izk,1),
+     1       errm_abs(izk,2)
+        enddo
+        print *, " "
+        print *, "================= "
+        print *, " "
+        print *, "Timing iflg 1"
+        do izk=1,4
+          write(*,'(i2,3(2x,e11.5))') izk,tts(1:3,izk,1)
+        enddo
+
+        print *, " "
+        print *, "================= "
+        print *, " "
+        print *, "Timing iflg 2"
+        do izk=1,4
+          write(*,'(i2,3(2x,e11.5))') izk,tts(1:3,izk,2)
+        enddo
+        print *, " "
+        print *, "================= "
+        print *, " "
+        print *, "Accuracy"
+        do izk=1,4
+          err1 = min(errm_rel1(izk,1),errm_abs(izk,1))
+          err2 = min(errm_rel1(izk,2),errm_abs(izk,2))
+          i1 = 0
+          i2 = 0
+          if(err1.lt.tol) i1 = 1
+          if(err2.lt.tol) i2 = 1
+          write(*,'(3(2x,i2))') izk,i1,i2
+        enddo
+        print *, " "
+        print *, "================= "
+        print *, " "
+        print *, "Timing comparison"
+        do izk=1,4
+          tt1 = tts(1,izk,1) + tts(2,izk,1) + tts(3,izk1,1)
+          tt2 = tts(1,izk,2) + tts(2,izk,2) + tts(3,izk1,2)
+          write(*,'(i2,3(2x,e11.5))') izk,tt1,tt2,tt3d(izk)
+        enddo
+        print *, " "
+        print *, "================= "
       endif
 
 
