@@ -9,6 +9,9 @@ coefficient Helmholtz equation.
 
 ## installing boxcodes3d
 
+### requirements
+
+boxcodes3d requires FMM3D v0.1.0 or later.
 
 ## dependencies
 
